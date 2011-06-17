@@ -6,6 +6,7 @@ import sys
 import re
 import time
 import shutil
+import hashlib
 import argparse
 import subprocess
 
@@ -75,6 +76,16 @@ class PySkein:
             print "  %s to %s" % (source, sources_dest)
             shutil.copy2("%s/%s" % (sources_src, source), sources_dest)
     
+    # this method assumes the sources are new and overwrites the 'sources' file in the git repository
+    def _generate_sha256(self, sources_dest, spec_dest):
+        print "== Generating sha256sum for sources =="
+        sfile = open(u"%s/sources" % spec_dest, 'w+')
+        for source in self.sources:
+            sha256sum = hashlib.sha256(open(u"%s/%s" % (sources_dest, source), 'rb').read()).hexdigest()
+            sfile.write(u"%s %s\n" % (sha256sum, source))
+        #close the file
+        sfile.close()
+
     def _copy_spec(self, spec_src, spec_dest):
         print "== Copying spec =="
 
@@ -136,7 +147,11 @@ class PySkein:
     def do_import(self, args):
 
         path = args.path
-        srpms = os.listdir(path)
+        try:
+            srpms = os.listdir(path)
+            print "srpms: %s" % str(srpms)
+        except OSError, e:
+            pass
     
         for srpm in srpms:
             self._install_srpm(u"%s/%s" % (path, srpm))
@@ -157,6 +172,7 @@ class PySkein:
 
             self._makedir(sources_dest)
             self._copy_sources(sources_src, sources_dest)
+            self._generate_sha256(sources_dest, spec_dest)
 
 def main():
 
