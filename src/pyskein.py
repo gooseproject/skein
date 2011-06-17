@@ -147,11 +147,11 @@ class PySkein:
     def do_import(self, args):
 
         path = args.path
-        try:
-            srpms = os.listdir(path)
-            print "srpms: %s" % str(srpms)
-        except OSError, e:
-            pass
+        if os.path.isdir(path):
+            srpms = os.listdir(path) 
+        elif os.path.isfile(path):
+            path, srpm = os.path.split(path)
+            srpms = [srpm]
     
         for srpm in srpms:
             self._install_srpm(u"%s/%s" % (path, srpm))
