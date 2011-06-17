@@ -1,0 +1,7 @@
+# github settings
+# add your username and api_token from github.com
+username = u"herlo"
+# this can be found by visiting https://github.com/account/admin 
+api_token = u"6ef8395fecf207165f1a82178ae1b984" # this is not my token
+# github organization (or user)
+org = u"gooseproject"
