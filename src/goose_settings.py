@@ -1,5 +1,7 @@
 # settings for create_gh_repo.py / import_srpms.py
 import os
+import logging
+
 import github_settings as ghs
 
 login = os.getenv('LOGNAME')
@@ -15,3 +17,9 @@ lookaside_dir = u"%s/%s/%s" % (base_dir, ghs.org, 'lookaside')
 
 lookaside_host = "http://pkgs.gooselinux.org"
 lookaside_uri = "%s/pkgs" % lookaside_host
+
+#logging settings
+logfile=u"%s/%s" % (install_root, "skein.log")
+logformat="%(levelname)s %(asctime)s %(message)s"
+logdateformat="%m/%d/%Y %I:%M:%S %p"
+loglevel=logging.DEBUG
