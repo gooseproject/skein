@@ -46,19 +46,20 @@ class PySkein:
         ts = rpm.ts()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
     
-        fdno = os.open(u"%s" % srpm, os.O_RDONLY)
+        fdno = open(u"%s" % srpm, 'r')
         try:
             hdr = ts.hdrFromFdno(fdno)
         except rpm.error, e:
             if str(e) == "public key not available":
                 print str(e)
-        os.close(fdno)
+        fdno.close()
         
         self.name = hdr[rpm.RPMTAG_NAME]
         self.version = hdr[rpm.RPMTAG_VERSION]
         self.release = hdr[rpm.RPMTAG_RELEASE]
         self.sources = hdr[rpm.RPMTAG_SOURCE]
         self.patches = hdr[rpm.RPMTAG_PATCH]
+        self.summary = hdr[rpm.RPMTAG_SUMMARY]
     
         self._makedir(u"%s/%s" % (gs.install_root, self.name))
     
@@ -126,10 +127,12 @@ class PySkein:
             self.repo = git.Repo(repo_dir)
 
         logging.info("  Performing git pull from origin at '%s'" % scm_url)
+
         try:
             self.repo.create_remote('origin', scm_url)
             self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
-        except GitCommandError, e:
+        except (AssertionError, GitCommandError), e:
+            logging.debug("--- Exception thrown %s" % e)
             origin = self.repo.remotes['origin']
             reader = origin.config_reader
             url = reader.get("url")
@@ -141,7 +144,32 @@ class PySkein:
                     origin.rename('old_origin')
                     self.repo.create_remote('origin', scm_url)
                     self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
-    
+
+    def _commit_and_push(self, repo=None):
+
+        logging.info("== Committing and pushing git repo ==")
+        if not repo:
+            repo = self.repo
+
+        index = repo.index
+
+        logging.info(" Adding updated files to the index") 
+        if repo.is_dirty():
+            index.add([diff.a_blob.path for diff in index.diff(None)])
+
+        logging.info(" Adding untracked files to the index") 
+        # add untracked files
+        path = os.path.split(repo.git_dir)[0]
+        #print "path: %s" % path
+        if repo.untracked_files:
+            index.add(repo.untracked_files)
+
+        logging.info(" Committing index") 
+        # commit files added to the index
+        index.commit("srpm imported (%s %s)" % (gs.distro, gs.version))
+
+    def do_sources(self, sources, new=False):
+        pass
 
     def do_import(self, args):
 
@@ -177,6 +205,10 @@ class PySkein:
             self._makedir(sources_dest)
             self._copy_sources(sources_src, sources_dest)
             self._generate_sha256(sources_dest, spec_dest)
+
+            self._commit_and_push()
+
+#            self._upload_sources(sources_dest)
 
             print "Import of '%s' complete\n" % (srpm)
             logging.info("== Import of '%s' complete ==\n" % (srpm))
