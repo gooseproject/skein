@@ -146,9 +146,8 @@ class PySkein:
                     self.repo.create_remote('origin', scm_url)
                     self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
                     
-    def _update_gitignore():
+    def _update_gitignore(self):
         pass
-
 
     def _commit_and_push(self, repo=None):
 
@@ -159,8 +158,10 @@ class PySkein:
         index = repo.index
 
         logging.info(" Adding updated files to the index") 
+        index_changed = False
         if repo.is_dirty():
             index.add([diff.a_blob.path for diff in index.diff(None)])
+            index_changed = True
 
         logging.info(" Adding untracked files to the index") 
         # add untracked files
@@ -168,10 +169,12 @@ class PySkein:
         #print "path: %s" % path
         if repo.untracked_files:
             index.add(repo.untracked_files)
+            index_changed = True
 
-        logging.info(" Committing index") 
-        # commit files added to the index
-        index.commit("srpm imported (%s %s)" % (gs.distro, gs.version))
+        if index_changed:
+            logging.info(" Committing index") 
+            # commit files added to the index
+            index.commit("srpm imported (%s %s)" % (gs.distro, gs.version))
 
         logging.info(" Pushing '%s' to '%s'" % (self.name, gs.git_remote)) 
         try:
@@ -236,7 +239,7 @@ class PySkein:
             self._commit_and_push()
 
 
-            print "Import of '%s' complete\n" % (srpm)
+            print "Import %s complete\n" % (self.name)
             logging.info("== Import of '%s' complete ==\n" % (srpm))
 
 def main():
