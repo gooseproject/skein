@@ -147,6 +147,7 @@ class PySkein:
                     self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
                     
     def _update_gitignore(self):
+
         pass
 
     def _commit_and_push(self, repo=None):
@@ -174,7 +175,7 @@ class PySkein:
         if index_changed:
             logging.info(" Committing index") 
             # commit files added to the index
-            index.commit("srpm imported (%s %s)" % (gs.distro, gs.version))
+            index.commit(gs.commit_message)
 
         logging.info(" Pushing '%s' to '%s'" % (self.name, gs.git_remote)) 
         try:
