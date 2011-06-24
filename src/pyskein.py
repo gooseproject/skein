@@ -60,6 +60,7 @@ class PySkein:
         self.sources = hdr[rpm.RPMTAG_SOURCE]
         self.patches = hdr[rpm.RPMTAG_PATCH]
         self.summary = hdr[rpm.RPMTAG_SUMMARY]
+        self.url = hdr[rpm.RPMTAG_URL]
     
         self._makedir(u"%s/%s" % (gs.install_root, self.name))
     
@@ -106,7 +107,7 @@ class PySkein:
         logging.info("== Creating github repository '%s/%s' ==" % (ghs.org, self.name))
         try:
             github = Github(username=ghs.username, api_token=ghs.api_token)
-            repo = github.repos.create(u"%s/%s" % (ghs.org, self.name))
+            repo = github.repos.create(u"%s/%s" % (ghs.org, self.name), self.summary, self.url)
             logging.info("  Remote '%s/%s' created" % (ghs.org, repo.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
@@ -144,6 +145,10 @@ class PySkein:
                     origin.rename('old_origin')
                     self.repo.create_remote('origin', scm_url)
                     self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
+                    
+    def _update_gitignore():
+        pass
+
 
     def _commit_and_push(self, repo=None):
 
@@ -168,11 +173,28 @@ class PySkein:
         # commit files added to the index
         index.commit("srpm imported (%s %s)" % (gs.distro, gs.version))
 
+        logging.info(" Pushing '%s' to '%s'" % (self.name, gs.git_remote)) 
+        try:
+            self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
+        except IndexError, e:
+            print "--- Push failed with error: %s ---" % e
+            logging.debug("--- Push failed with error: %s" % e)
+            raise
+        except AssertionError, e:
+            # odds are that unless the exception 'e' has a value
+            # the assertionerror is wrong.  Usually, this is because
+            # gitPython shows a warning, not an actual error
+            if e and len(str(e)) != 0:
+                print "--- Push failed with error: %s ---" % e
+                logging.debug("--- Push failed with error: %s" % e)
+                raise 
+
     def do_sources(self, sources, new=False):
         pass
 
     def do_import(self, args):
 
+        print "Logging transactions in %s\n" % gs.logfile
         path = args.path
         if os.path.isdir(path):
             srpms = os.listdir(path) 
@@ -206,9 +228,13 @@ class PySkein:
             self._copy_sources(sources_src, sources_dest)
             self._generate_sha256(sources_dest, spec_dest)
 
+            self._update_gitignore()
+
+#            self._do_makefile()
+#            self._upload_sources(sources_dest)
+
             self._commit_and_push()
 
-#            self._upload_sources(sources_dest)
 
             print "Import of '%s' complete\n" % (srpm)
             logging.info("== Import of '%s' complete ==\n" % (srpm))

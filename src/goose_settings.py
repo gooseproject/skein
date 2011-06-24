@@ -19,6 +19,8 @@ git_remote = u"git@github.com:%s" % ghs.org
 lookaside_dir = u"%s/%s/%s" % (base_dir, ghs.org, 'lookaside')
 
 #lookaside server configs
+
+lookaside_user = "pkgmgr" # this user *must* have an public ssh key on the lookaside_host for the local user
 lookaside_host = "http://pkgs.gooselinux.org"
 lookaside_uri = "%s/pkgs" % lookaside_host
 
