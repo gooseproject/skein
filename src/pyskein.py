@@ -146,9 +146,37 @@ class PySkein:
                     self.repo.create_remote('origin', scm_url)
                     self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
                     
-    def _update_gitignore(self):
+    # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
+    def _update_gitignore(self, path):
+        gitignore_file = open("%s/%s" % (path, '.gitignore'), 'w')
+        for line in self.sources:
+            gitignore_file.write("%s\n" % line)
+        gitignore_file.close()
 
-        pass
+    # search for a makefile.tpl in the makefile_path and use
+    # it as a template to put in each package's repository
+    def _do_makefile(self):
+        found = False
+        for path in gs.makefile_path.split(':'):
+            expanded_path = "%s/%s" % (os.path.expanduser(path), gs.makefile_name)
+#            print "expanded_path: %s" % expanded_path
+            if os.path.exists(expanded_path):
+                makefile_template = expanded_path
+                found = True
+                break
+
+        if not found:
+            logging.error("'%s' not found in path '%s', please fix in the skein_settings.py" % (gs.makefile_name, gs.makefile_path))
+            raise IOError("'%s' not found in path '%s', please fix in the skein_settings.py" % (gs.makefile_name, gs.makefile_path))
+
+#        print "makefile template found at %s" % makefile_template
+
+        src_makefile = open(makefile_template)
+        dst_makefile = open("%s/%s/Makefile" % (gs.base_dir, self.name), 'w')
+
+        dst_makefile.write( src_makefile.read() % {'name': self.name})
+        dst_makefile.close()
+
 
     def _commit_and_push(self, repo=None):
 
@@ -158,22 +186,26 @@ class PySkein:
 
         index = repo.index
 
-        logging.info(" Adding updated files to the index") 
+        logging.info("  adding updated files to the index") 
         index_changed = False
         if repo.is_dirty():
+            print "index: %s" % index
+            for diff in index.diff(None):
+                print diff.a_blob.path
+
             index.add([diff.a_blob.path for diff in index.diff(None)])
             index_changed = True
 
-        logging.info(" Adding untracked files to the index") 
+        logging.info("  adding untracked files to the index") 
         # add untracked files
-        path = os.path.split(repo.git_dir)[0]
-        #print "path: %s" % path
+        path = os.path.split(gs.base_dir)[0]
+        print "path: %s" % path
         if repo.untracked_files:
             index.add(repo.untracked_files)
             index_changed = True
 
         if index_changed:
-            logging.info(" Committing index") 
+            logging.info("  committing index") 
             # commit files added to the index
             index.commit(gs.commit_message)
 
@@ -218,9 +250,14 @@ class PySkein:
             time.sleep(1)
 
             spec_src = u"%s/%s%s/%s/%s.spec" % (gs.install_root, self.name, gs.home, 'rpmbuild/SPECS', self.name)
-            spec_dest = u"%s/%s" % (gs.git_dir, self.name)
+            spec_dest = u"%s/%s" % (gs.base_dir, self.name)
             sources_src = u"%s/%s%s/%s" % (gs.install_root, self.name, gs.home, 'rpmbuild/SOURCES')
             sources_dest = u"%s/%s" % (gs.lookaside_dir, self.name)
+
+#            print "spec_src: %s" % spec_src
+#            print "spec_dest: %s" % spec_dest
+#            print "sources_src: %s" % sources_src
+#            print "sources_dest: %s" % sources_dest
 
             self._makedir(spec_dest)
             self._clone_git_repo(spec_dest, u"%s/%s.git" %(gs.git_remote, self.name))
@@ -232,9 +269,9 @@ class PySkein:
             self._copy_sources(sources_src, sources_dest)
             self._generate_sha256(sources_dest, spec_dest)
 
-            self._update_gitignore()
+            self._update_gitignore(spec_dest)
 
-#            self._do_makefile()
+            self._do_makefile()
 #            self._upload_sources(sources_dest)
 
             self._commit_and_push()

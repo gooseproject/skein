@@ -13,11 +13,14 @@ distro = u"GoOSe"
 version = u"6.0"
 commit_message="srpm imported (%s %s) 'Testing'" % (distro, version)
 
-projects_dir = u"Projects"
-base_dir = u"%s/%s" % (home, projects_dir)
-git_dir = u"%s/%s" % (base_dir, ghs.org)
+project_root = u"%s/Projects" % home
+base_dir = u"%s/%s" % (project_root, ghs.org)
 git_remote = u"git@github.com:%s" % ghs.org
 lookaside_dir = u"%s/%s/%s" % (base_dir, ghs.org, 'lookaside')
+
+#path for Makefile.tpl
+makefile_path = "%s:~/.skein" % base_dir
+makefile_name = "Makefile.tpl"
 
 #lookaside server configs
 lookaside_user = "pkgmgr" # this user *must* have an public ssh key on the lookaside_host for the local user
