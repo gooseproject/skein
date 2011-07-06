@@ -19,7 +19,7 @@ import git
 from git.errors import InvalidGitRepositoryError, NoSuchPathError, GitCommandError
 
 # settings, including lookaside uri and temporary paths
-import goose_settings as gs
+import skein_settings as sks
 
 # github api and token should be kept secret
 import github_settings as ghs
@@ -33,7 +33,7 @@ class PySkein:
     
     def __init__(self):
         self.org = ghs.org
-        logging.basicConfig(filename=gs.logfile, level=gs.loglevel, format=gs.logformat, datefmt=gs.logdateformat)
+        logging.basicConfig(filename=sks.logfile, level=sks.loglevel, format=sks.logformat, datefmt=sks.logdateformat)
 
     def _makedir(self, target, perms=0775):
         if not os.path.isdir(u"%s" % (target)):
@@ -62,12 +62,11 @@ class PySkein:
         self.summary = hdr[rpm.RPMTAG_SUMMARY]
         self.url = hdr[rpm.RPMTAG_URL]
     
-        self._makedir(u"%s/%s" % (gs.install_root, self.name))
+        self._makedir(u"%s/%s" % (sks.install_root, self.name))
     
-        logging.info("  installing %s into %s/%s" % (srpm, gs.install_root, self.name))
-        args = ["/bin/rpm", "-i", "--root=%s/%s" % (gs.install_root, self.name), "%s" % (srpm)]
-        p = subprocess.Popen(args)
-
+        logging.info("  installing %s into %s/%s" % (srpm, sks.install_root, self.name))
+        args = ["/bin/rpm", "-i", "--root=%s/%s" % (sks.install_root, self.name), "%s" % (srpm)]
+        p = subprocess.call(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE )
 
     def _copy_sources(self, sources_src, sources_dest):
         logging.info("== Copying sources ==")
@@ -148,6 +147,7 @@ class PySkein:
                     
     # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
     def _update_gitignore(self, path):
+        logging.info("  Updating .gitignore with sources" % repo_dir)
         gitignore_file = open("%s/%s" % (path, '.gitignore'), 'w')
         for line in self.sources:
             gitignore_file.write("%s\n" % line)
@@ -156,9 +156,10 @@ class PySkein:
     # search for a makefile.tpl in the makefile_path and use
     # it as a template to put in each package's repository
     def _do_makefile(self):
+        logging.info("  Updating Makefile" % repo_dir)
         found = False
-        for path in gs.makefile_path.split(':'):
-            expanded_path = "%s/%s" % (os.path.expanduser(path), gs.makefile_name)
+        for path in sks.makefile_path.split(':'):
+            expanded_path = "%s/%s" % (os.path.expanduser(path), sks.makefile_name)
 #            print "expanded_path: %s" % expanded_path
             if os.path.exists(expanded_path):
                 makefile_template = expanded_path
@@ -166,17 +167,33 @@ class PySkein:
                 break
 
         if not found:
-            logging.error("'%s' not found in path '%s', please fix in the skein_settings.py" % (gs.makefile_name, gs.makefile_path))
-            raise IOError("'%s' not found in path '%s', please fix in the skein_settings.py" % (gs.makefile_name, gs.makefile_path))
+            logging.error("'%s' not found in path '%s', please fix in the skein_settings.py" % (sks.makefile_name, sks.makefile_path))
+            raise IOError("'%s' not found in path '%s', please fix in the skein_settings.py" % (sks.makefile_name, sks.makefile_path))
 
 #        print "makefile template found at %s" % makefile_template
 
         src_makefile = open(makefile_template)
-        dst_makefile = open("%s/%s/Makefile" % (gs.base_dir, self.name), 'w')
+        dst_makefile = open("%s/%s/Makefile" % (sks.base_dir, self.name), 'w')
 
         dst_makefile.write( src_makefile.read() % {'name': self.name})
         dst_makefile.close()
 
+    def _upload_sources(self, sources_path):
+
+        logging.info("== Uploading Sources ==")
+#        os.chdir( sks.lookaside_dir  )
+#        print "CWD: %s" % os.getcwd()
+#        print "PKG: %s" % self.name
+
+        for source in self.sources:
+#            print "rsync -vloDtRz -e ssh %s/%s %s@%s:%s/" % (self.name, source, sks.lookaside_user, sks.lookaside_host, sks.lookaside_remote_dir)
+
+            logging.info("  uploading %s to %s" % (source, sks.lookaside_host))
+            args = ["/usr/bin/rsync", "-loDtRz", "-e", "ssh", "%s/%s" % (self.name, source), "%s@%s:%s/" % ( sks.lookaside_user, sks.lookaside_host, sks.lookaside_remote_dir)]
+            p = subprocess.call(args, cwd="%s" % (sks.lookaside_dir), stdout = subprocess.PIPE)
+#            os.waitpid(p.pid, 0)
+#            print "result %s" % p.communicate()[0]
+#            time.sleep(2)
 
     def _commit_and_push(self, repo=None):
 
@@ -198,7 +215,7 @@ class PySkein:
 
         logging.info("  adding untracked files to the index") 
         # add untracked files
-        path = os.path.split(gs.base_dir)[0]
+        path = os.path.split(sks.base_dir)[0]
         print "path: %s" % path
         if repo.untracked_files:
             index.add(repo.untracked_files)
@@ -207,9 +224,9 @@ class PySkein:
         if index_changed:
             logging.info("  committing index") 
             # commit files added to the index
-            index.commit(gs.commit_message)
+            index.commit(sks.commit_message)
 
-        logging.info(" Pushing '%s' to '%s'" % (self.name, gs.git_remote)) 
+        logging.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote)) 
         try:
             self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
         except IndexError, e:
@@ -230,7 +247,7 @@ class PySkein:
 
     def do_import(self, args):
 
-        print "Logging transactions in %s\n" % gs.logfile
+        print "Logging transactions in %s\n" % sks.logfile
         path = args.path
         if os.path.isdir(path):
             srpms = os.listdir(path) 
@@ -249,10 +266,10 @@ class PySkein:
             self._create_gh_repo()
             time.sleep(1)
 
-            spec_src = u"%s/%s%s/%s/%s.spec" % (gs.install_root, self.name, gs.home, 'rpmbuild/SPECS', self.name)
-            spec_dest = u"%s/%s" % (gs.base_dir, self.name)
-            sources_src = u"%s/%s%s/%s" % (gs.install_root, self.name, gs.home, 'rpmbuild/SOURCES')
-            sources_dest = u"%s/%s" % (gs.lookaside_dir, self.name)
+            spec_src = u"%s/%s%s/%s/%s.spec" % (sks.install_root, self.name, sks.home, 'rpmbuild/SPECS', self.name)
+            spec_dest = u"%s/%s" % (sks.base_dir, self.name)
+            sources_src = u"%s/%s%s/%s" % (sks.install_root, self.name, sks.home, 'rpmbuild/SOURCES')
+            sources_dest = u"%s/%s" % (sks.lookaside_dir, self.name)
 
 #            print "spec_src: %s" % spec_src
 #            print "spec_dest: %s" % spec_dest
@@ -260,7 +277,7 @@ class PySkein:
 #            print "sources_dest: %s" % sources_dest
 
             self._makedir(spec_dest)
-            self._clone_git_repo(spec_dest, u"%s/%s.git" %(gs.git_remote, self.name))
+            self._clone_git_repo(spec_dest, u"%s/%s.git" %(sks.git_remote, self.name))
 
             self._copy_spec(spec_src, spec_dest)
             self._copy_patches(sources_src, spec_dest)
@@ -272,7 +289,7 @@ class PySkein:
             self._update_gitignore(spec_dest)
 
             self._do_makefile()
-#            self._upload_sources(sources_dest)
+            self._upload_sources(sources_dest)
 
             self._commit_and_push()
 
