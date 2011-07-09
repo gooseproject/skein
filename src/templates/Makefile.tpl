@@ -10,12 +10,15 @@ COMMON_DIR := $(shell $(find-common-dir))
 
 include $(COMMON_DIR)/Makefile.common
 
-SOURCEFILES := $(shell cat sources 2>/dev/null | awk '{ print $$2 }')
+SOURCEFILES := $(shell cat sources 2>/dev/null | awk '{ print $$2 }' | awk -F'*' '{ print $$2 }')
 
 sources: $(SOURCEFILES)
 
 $(SOURCEFILES):
-	$(CLIENT) $(LOOKASIDE_URI)/$(NAME)/$(SOURCEFILES)
+	@for sourcefile in $(SOURCEFILES); do \
+	    $(CLIENT) $(LOOKASIDE_URI)/$(NAME)/$${sourcefile}; \
+	done
+
 	sha256sum -c sources || ( echo 'SHA256 check failed' && rm $(SOURCEFILES); exit 1 )
 
 clean:
