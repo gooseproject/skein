@@ -82,7 +82,7 @@ class PySkein:
         sfile = open(u"%s/sources" % spec_dest, 'w+')
         for source in self.sources:
             sha256sum = hashlib.sha256(open(u"%s/%s" % (sources_dest, source), 'rb').read()).hexdigest()
-            sfile.write(u"%s %s\n" % (sha256sum, source))
+            sfile.write(u"%s *%s\n" % (sha256sum, source))
         #close the file
         sfile.close()
 
@@ -147,7 +147,7 @@ class PySkein:
                     
     # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
     def _update_gitignore(self, path):
-        logging.info("  Updating .gitignore with sources" % repo_dir)
+        logging.info("  Updating .gitignore with sources")
         gitignore_file = open("%s/%s" % (path, '.gitignore'), 'w')
         for line in self.sources:
             gitignore_file.write("%s\n" % line)
@@ -156,7 +156,7 @@ class PySkein:
     # search for a makefile.tpl in the makefile_path and use
     # it as a template to put in each package's repository
     def _do_makefile(self):
-        logging.info("  Updating Makefile" % repo_dir)
+        logging.info("  Updating Makefile")
         found = False
         for path in sks.makefile_path.split(':'):
             expanded_path = "%s/%s" % (os.path.expanduser(path), sks.makefile_name)
@@ -206,17 +206,17 @@ class PySkein:
         logging.info("  adding updated files to the index") 
         index_changed = False
         if repo.is_dirty():
-            print "index: %s" % index
-            for diff in index.diff(None):
-                print diff.a_blob.path
+           #print "index: %s" % index
+#            for diff in index.diff(None):
+#                print diff.a_blob.path
 
-            index.add([diff.a_blob.path for diff in index.diff(None)])
+            index.add([diff.a_blob.path.rstrip('\n') for diff in index.diff(None)])
             index_changed = True
 
         logging.info("  adding untracked files to the index") 
         # add untracked files
         path = os.path.split(sks.base_dir)[0]
-        print "path: %s" % path
+        #print "path: %s" % path
         if repo.untracked_files:
             index.add(repo.untracked_files)
             index_changed = True
@@ -254,6 +254,9 @@ class PySkein:
         elif os.path.isfile(path):
             path, srpm = os.path.split(path)
             srpms = [srpm]
+        else:
+            print "'%s' is not valid" % path
+            sys.exit(1)
     
         for srpm in srpms:
             print "Importing %s" % (srpm)
