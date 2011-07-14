@@ -12,7 +12,7 @@ install_root = u"/tmp/projects"
 distro = u"GoOSe"
 version = u"6.0"
 commit_message="srpm imported (%s %s)" % (distro, version)
-#commit_message="Makefile needed another minor adjustment (%s %s)" % (distro, version)
+#commit_message="Makefile name was wrong (%s %s)" % (distro, version)
 
 project_root = u"%s/Projects" % home
 base_dir = u"%s/%s" % (project_root, ghs.org)

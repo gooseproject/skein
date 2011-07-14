@@ -218,6 +218,7 @@ class PySkein:
         path = os.path.split(sks.base_dir)[0]
         #print "path: %s" % path
         if repo.untracked_files:
+#            print "untracked files: %s" % repo.untracked_files
             index.add(repo.untracked_files)
             index_changed = True
 
