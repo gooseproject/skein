@@ -72,7 +72,7 @@ class PySkein:
         logging.info("  Setting srpm requires ==")
         # note to self, the [:-2] strips off the rpmlib(FileDigests)' and 
         #'rpmlib(CompressedFileNames)' which are provided by the 'rpm' rpm
-        self.buildrequires = hdr[rpm.RPMTAG_REQUIRES][:-2]
+        self.buildrequires = hdr[rpm.RPMTAG_REQUIRES]
 
     # install the srpm in a temporary directory
     def _install_srpm(self, srpm):
@@ -281,7 +281,7 @@ class PySkein:
             print "== Deps for %s ==" % (srpm)
             logging.info("== Getting deps for %s==" % (srpm))
             for br in self.buildrequires:
-                logging.info("  %s==" % br)
+                logging.info("  %s" % br)
                 print "  %s" % br
             print ""
 
