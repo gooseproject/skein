@@ -8,7 +8,7 @@ import argparse
 import subprocess
 
 # import our basic settings
-from goose_settings import *
+from skein_settings import *
 
 # import the rpm parsing stuff
 import rpm
