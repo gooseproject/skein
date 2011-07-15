@@ -30,15 +30,20 @@ def main():
 
     sp = p.add_subparsers()
 
-    p_upload = sp.add_parser("sources", help=u"upload an srpm archive")
-    p_upload.add_argument('srpm', help=u"path to archive")
-    p_upload.add_argument('--new', action="store_true", help=u"new sources will replace old source")
-    p_upload.set_defaults(func=ps.do_sources)
+#    p_upload = sp.add_parser("sources", help=u"upload an srpm archive")
+#    p_upload.add_argument('srpm', help=u"path to archive")
+#    p_upload.add_argument('--new', action="store_true", help=u"new sources will replace old source")
+#    p_upload.set_defaults(func=ps.do_sources)
 
     p_import = sp.add_parser("import", help=u"import srpm(s)")
     #p_import.add_argument("path", nargs='+', help=u"path to srpm. If dir given, will import all srpms")
     p_import.add_argument("path", help=u"path to srpm. If dir given, will import all srpms")
     p_import.set_defaults(func=ps.do_import)
+
+    p_deplist = sp.add_parser("deplist", help=u"return dependencies to build srpm")
+    #p_import.add_argument("path", nargs='+', help=u"path to srpm. If dir given, will import all srpms")
+    p_deplist.add_argument("path", help=u"path to srpm. If dir given, will import all srpms")
+    p_deplist.set_defaults(func=ps.list_deps)
 
     args = p.parse_args()
 #    print "Args: %s" % str(args)
