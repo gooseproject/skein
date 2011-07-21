@@ -15,28 +15,16 @@ Using skein is simple, but there are a few different functions available.::
     $ skein -h
     usage: skein [-h] [--dist DIST] {help,import,mass-import,upload,gen-make,new-sources}
 
+skein dependencies
+==================
+
+* git-python = 0.2x (http://gitorious.org/projects/git-python/)
+* rpm-python (http://www.rpm.org/)
+* github2 (http://packages.python.org/github2/)
+
+
 skein import
 ============
 
-Imports a single srpm to the current directory::
-
-skein upload
-============
-
-Upload archive files to the lookaside cache for a particular package.
-
-skein gen-make
-==============
-
-Generate the Makefile for a package.
-
-skein new-sources
-=================
-
-Replace the old archives with new files and update the srcs file with appropriate information.
-
-skein mass-import
-=================
-
-Imports a directory of srpms. If a remote git repository is needed, it will be created. The spec and patch files are copied into a local git repo and committed, then pushed to the remote git repository. The default location for the local and remote git repositories, as well as the location to upload the archive is configured in the skein_settings.py.
+Imports a directory of srpms or single srpms. If a remote git repository is needed, it will be created. The spec and patch files are copied into a local git repo and committed, then pushed to the remote git repository. The default location for the local and remote git repositories, as well as the location to upload the archive is configured in the skein_settings.py.
 
