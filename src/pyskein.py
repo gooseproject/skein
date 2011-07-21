@@ -64,7 +64,11 @@ class PySkein:
         logging.info("  Setting srpm sources ==")
         self.sources = hdr[rpm.RPMTAG_SOURCE]
         logging.info("  Setting srpm patches ==")
-        self.patches = hdr[rpm.RPMTAG_PATCH]
+#        print "rpm patches: %s" % hdr[rpm.RPMTAG_PATCH]
+        self.patches = []
+        for patch in hdr[rpm.RPMTAG_PATCH]:
+            self.patches.append(patch.replace('%{name}', self.name))
+#        self.patches = hdr[rpm.RPMTAG_PATCH].replace('%{name}', self.name)
         logging.info("  Setting srpm summary ==")
         self.summary = hdr[rpm.RPMTAG_SUMMARY]
         logging.info("  Setting srpm url ==")
@@ -115,6 +119,7 @@ class PySkein:
     def _copy_patches(self, patches_src, patches_dest):
         logging.info("== Copying patches ==")
         # copy the patch files
+        #print "patches: %s" % self.patches
         for patch in self.patches:
             logging.info("  %s to %s" % (patch, patches_dest))
             shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
@@ -124,6 +129,9 @@ class PySkein:
         try:
             github = Github(username=ghs.username, api_token=ghs.api_token)
             repo = github.repos.create(u"%s/%s" % (ghs.org, self.name), self.summary, self.url)
+            for team in ghs.repo_teams:
+                github.teams.add_project(team, u"%s/%s" % (ghs.org, self.name))
+
             logging.info("  Remote '%s/%s' created" % (ghs.org, repo.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
