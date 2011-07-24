@@ -19,7 +19,7 @@ skein dependencies
 ==================
 
 * git-python = 0.2x (http://gitorious.org/projects/git-python/)
-* rpm-python (http://www.rpm.org/)
+* rpm-python >= 4.9.0 (http://www.rpm.org/)
 * github2 (http://packages.python.org/github2/)
 
 
