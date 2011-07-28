@@ -41,11 +41,16 @@ Before using skein, several configurations may need to be adjusted. There are tw
 
 * The github_settings.py.sample needs to be renamed to github_settings.py. The username and API key also need to be adjusted to enable any github functionality. 
 * Inside the skein_settings.py several configurations need to be verified and adjusted as desired
+
   * install_root - the directory in which source rpms are installed. This directory must be created prior to running skein
+
     * Files and directories inside 'install_root' can be removed at any time. They are not automatically removed.
+
   * base_dir - the base directory of both the local git repositories and the local lookaside cache
+
     * Files and directories inside the 'base_dir' can be removed at anytime. They are not automatically removed.
     * Each project directory inside the 'base_dir', except the 'lookaside_dir' are local git repositories of imported srpms
+
   * makefile_name - reference file used by skein to generate Makefile for each imported srpm
   * makefile_path - location of Makefile.tpl which is used to generate the Makefile for each imported srpm
 
