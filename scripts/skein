@@ -7,13 +7,10 @@ import shutil
 import argparse
 import subprocess
 
-# import our basic settings
-from skein_settings import *
-
 # import the rpm parsing stuff
 import rpm
 
-import pyskein
+from skein import pyskein
 
 def main():
 
@@ -46,5 +43,4 @@ def main():
     args.func(args)
 
 if __name__ == "__main__":
-    from skein import main
     raise SystemExit(main())
