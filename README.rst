@@ -10,7 +10,7 @@ More can be read about Skein at http://github.com/gooseproject/skein/.
 Using Skein
 -----------
 
-Using skein is simple, but there are a few different functions available.::
+Using skein is simple, but there are a few different functions available::
 
     $ skein -h
     usage: skein [-h] {deplist,import} ...
@@ -59,7 +59,7 @@ Before using skein, several configurations may need to be adjusted. There are tw
 SRPM Imports
 ============
 
-Skein provides the ability to import a single source rpm (srpm) or a directory of srpms.::
+Skein provides the ability to import a single source rpm (srpm) or a directory of srpms::
 
     $ skein import -h
     usage: skein import [-h] path
@@ -83,7 +83,7 @@ The import performs several actions on each srpm:
 
 The import transactions are stored in a log file (/tmp/projects/skein.log by default) which contains a record of actions for each srpm imported.
 
-SRPM Dependency List
+Listing Dependencies
 ====================
 
 Skein can determine the BuildRequires for an srpm or the Requires for an rpm.::
