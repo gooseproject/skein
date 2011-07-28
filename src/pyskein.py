@@ -302,8 +302,6 @@ class PySkein:
             logging.info("== Importing %s==" % (srpm))
             self._set_srpm_details(u"%s" % (srpm))
             self._install_srpm(u"%s" % (srpm))
-            # must wait a second or two for the install to finish
-            time.sleep(1)
 
             # make sure the github repo exists
             self._create_gh_repo()
@@ -335,7 +333,6 @@ class PySkein:
             self._upload_sources(sources_dest)
 
             self._commit_and_push()
-
 
             print "Import %s complete\n" % (self.name)
             logging.info("== Import of '%s' complete ==\n" % (srpm))

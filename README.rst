@@ -43,9 +43,6 @@ Skein provides the ability to import a single source rpm (srpm) or a directory o
     positional arguments:
       path        path to srpm. If dir given, will import all srpms
 
-    optional arguments:
-      -h, --help  show this help message and exit
-
 The import performs several actions on each srpm:
 
 * The srpm is installed into a temporary directory
@@ -60,6 +57,21 @@ The import performs several actions on each srpm:
 * The sources in the lookaside directory are uploaded to the remote lookaside cache
 * All files in the local git repository are added to the index, committed with a standard message and pushed to the remote git repository
 
+The import transactions are stored in a log file (/tmp/projects/skein.log by default) which contains a record of actions for each srpm imported.
 
+SRPM Dependency List
+====================
 
+Skein can determine the BuildRequires for an srpm or the Requires for an rpm.::
 
+    $ ./skein deplist /mnt/rhel6-source/SRPMS/bash-4.1.2-3.el6.src.rpm 
+    == Deps for /mnt/rhel6-source/SRPMS/bash-4.1.2-3.el6.src.rpm ==
+      texinfo
+      bison
+      ncurses-devel
+      autoconf
+      gettext
+      rpmlib(FileDigests)
+      rpmlib(CompressedFileNames)
+
+.. note:: The bash srpm dependencies are listed above. Each dependency must be met to build the bash rpm in koji. The rpmlib(FileDigests) and rpmlib(CompressedFileNames) dependencies are generally already resolved once the buildroot is setup in koji and can usually be ignored.
