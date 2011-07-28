@@ -14,11 +14,6 @@ from skein_settings import *
 import rpm
 
 import pyskein
-# import github creation 
-#from create_gh_repo import *
-
-# import git repo creation
-#from create_git_repo import *
 
 def main():
 
