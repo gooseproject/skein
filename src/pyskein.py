@@ -34,7 +34,6 @@ class PySkein:
     def __init__(self):
         self.org = ghs.org
         logging.basicConfig(filename=sks.logfile, level=sks.loglevel, format=sks.logformat, datefmt=sks.logdateformat)
-        print "Logging transactions in %s\n" % sks.logfile
 
     def _makedir(self, target, perms=0775):
         if not os.path.isdir(u"%s" % (target)):
