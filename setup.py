@@ -9,5 +9,5 @@ setup(name='skein',
       author_email='herlo1@gmail.com',
       url='http://github.com/gooseproject/skein/',
       packages=['skein'],
-      scripts=['scripts/skein'],
+      scripts=['scripts/skein', 'scripts/skein.py'],
      )
