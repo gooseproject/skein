@@ -33,6 +33,8 @@ class PySkein:
     
     def __init__(self):
         self.org = ghs.org
+
+        self._makedir(sks.install_root)
         logging.basicConfig(filename=sks.logfile, level=sks.loglevel, format=sks.logformat, datefmt=sks.logdateformat)
 
     def _makedir(self, target, perms=0775):
