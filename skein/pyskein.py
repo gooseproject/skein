@@ -39,10 +39,10 @@ class PySkein:
         if not os.path.isdir(u"%s" % (target)):
             os.makedirs(u"%s" % (target), perms)
     
-    # install the srpm in a temporary directory
-    def _install_srpm(self, srpm):
-        # rpm.ts is an alias for rpm.TransactionSet
-        logging.info("== Installing srpm ==")
+    # grab the details from the rpm and add them to the object
+    def _set_srpm_details(self, srpm):
+
+        logging.info("== Querying srpm ==")
         ts = rpm.ts()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
     
@@ -54,13 +54,33 @@ class PySkein:
                 print str(e)
         fdno.close()
         
+        logging.info("  Setting srpm name ==")
         self.name = hdr[rpm.RPMTAG_NAME]
+        logging.info("  Setting srpm version ==")
         self.version = hdr[rpm.RPMTAG_VERSION]
+        logging.info("  Setting srpm release ==")
         self.release = hdr[rpm.RPMTAG_RELEASE]
+        logging.info("  Setting srpm sources ==")
         self.sources = hdr[rpm.RPMTAG_SOURCE]
-        self.patches = hdr[rpm.RPMTAG_PATCH]
+        logging.info("  Setting srpm patches ==")
+#        print "rpm patches: %s" % hdr[rpm.RPMTAG_PATCH]
+        self.patches = []
+        for patch in hdr[rpm.RPMTAG_PATCH]:
+            self.patches.append(patch.replace('%{name}', self.name))
+#        self.patches = hdr[rpm.RPMTAG_PATCH].replace('%{name}', self.name)
+        logging.info("  Setting srpm summary ==")
         self.summary = hdr[rpm.RPMTAG_SUMMARY]
+        logging.info("  Setting srpm url ==")
         self.url = hdr[rpm.RPMTAG_URL]
+        logging.info("  Setting srpm requires ==")
+        # note to self, the [:-2] strips off the rpmlib(FileDigests)' and 
+        #'rpmlib(CompressedFileNames)' which are provided by the 'rpm' rpm
+        self.buildrequires = hdr[rpm.RPMTAG_REQUIRES]
+
+    # install the srpm in a temporary directory
+    def _install_srpm(self, srpm):
+        # rpm.ts is an alias for rpm.TransactionSet
+        logging.info("== Installing srpm ==")
     
         self._makedir(u"%s/%s" % (sks.install_root, self.name))
     
@@ -98,6 +118,7 @@ class PySkein:
     def _copy_patches(self, patches_src, patches_dest):
         logging.info("== Copying patches ==")
         # copy the patch files
+        #print "patches: %s" % self.patches
         for patch in self.patches:
             logging.info("  %s to %s" % (patch, patches_dest))
             shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
@@ -107,6 +128,9 @@ class PySkein:
         try:
             github = Github(username=ghs.username, api_token=ghs.api_token)
             repo = github.repos.create(u"%s/%s" % (ghs.org, self.name), self.summary, self.url)
+            for team in ghs.repo_teams:
+                github.teams.add_project(team, u"%s/%s" % (ghs.org, self.name))
+
             logging.info("  Remote '%s/%s' created" % (ghs.org, repo.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
@@ -243,28 +267,41 @@ class PySkein:
                 logging.debug("--- Push failed with error: %s" % e)
                 raise 
 
-    def do_sources(self, sources, new=False):
-        pass
+    def _get_srpm_list(self, path):
 
-    def do_import(self, args):
-
-        print "Logging transactions in %s\n" % sks.logfile
-        path = args.path
         if os.path.isdir(path):
-            srpms = os.listdir(path) 
+            return os.listdir(path)
         elif os.path.isfile(path):
-            path, srpm = os.path.split(path)
-            srpms = [srpm]
+            return [path]
         else:
             print "'%s' is not valid" % path
             sys.exit(1)
+
+
+    def list_deps(self, args):
+
+        path = args.path
+        srpms = self._get_srpm_list(path)
+
+        for srpm in srpms:
+            self._set_srpm_details(u"%s" % (srpm))
+            print "== Deps for %s ==" % (srpm)
+            logging.info("== Getting deps for %s==" % (srpm))
+            for br in self.buildrequires:
+                logging.info("  %s" % br)
+                print "  %s" % br
+            print ""
+
+    def do_import(self, args):
+
+        path = args.path
+        srpms = self._get_srpm_list(path)
     
         for srpm in srpms:
             print "Importing %s" % (srpm)
             logging.info("== Importing %s==" % (srpm))
-            self._install_srpm(u"%s/%s" % (path, srpm))
-            # must wait a second or two for the install to finish
-            time.sleep(1)
+            self._set_srpm_details(u"%s" % (srpm))
+            self._install_srpm(u"%s" % (srpm))
 
             # make sure the github repo exists
             self._create_gh_repo()
@@ -296,7 +333,6 @@ class PySkein:
             self._upload_sources(sources_dest)
 
             self._commit_and_push()
-
 
             print "Import %s complete\n" % (self.name)
             logging.info("== Import of '%s' complete ==\n" % (srpm))

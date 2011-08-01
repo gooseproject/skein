@@ -4,6 +4,8 @@ control/
 logs/
 specs/
 requires/
+build/
+install/
 .*.sw[po]
 *.py[co]
 
