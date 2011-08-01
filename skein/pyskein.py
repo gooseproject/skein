@@ -33,6 +33,8 @@ class PySkein:
     
     def __init__(self):
         self.org = ghs.org
+
+        self._makedir(sks.install_root)
         logging.basicConfig(filename=sks.logfile, level=sks.loglevel, format=sks.logformat, datefmt=sks.logdateformat)
 
     def _makedir(self, target, perms=0775):
@@ -253,6 +255,7 @@ class PySkein:
 
         logging.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote)) 
         try:
+            print "self.repo.remotes: %s" % self.repo.remotes
             self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
         except IndexError, e:
             print "--- Push failed with error: %s ---" % e
@@ -294,48 +297,53 @@ class PySkein:
 
     def do_import(self, args):
 
-        path = args.path
-        srpms = self._get_srpm_list(path)
+#        path = args.path
+#        print "PATH: %s" % args.path
+#        print "
+        for path in args.path:
+            srpms = self._get_srpm_list(path)
+        
+            for srpm in srpms:
+                print "Importing %s" % (srpm)
+                logging.info("== Importing %s==" % (srpm))
+                self._set_srpm_details(u"%s" % (srpm))
+                self._install_srpm(u"%s" % (srpm))
     
-        for srpm in srpms:
-            print "Importing %s" % (srpm)
-            logging.info("== Importing %s==" % (srpm))
-            self._set_srpm_details(u"%s" % (srpm))
-            self._install_srpm(u"%s" % (srpm))
-
-            # make sure the github repo exists
-            self._create_gh_repo()
-            time.sleep(1)
-
-            spec_src = u"%s/%s%s/%s/%s.spec" % (sks.install_root, self.name, sks.home, 'rpmbuild/SPECS', self.name)
-            spec_dest = u"%s/%s" % (sks.base_dir, self.name)
-            sources_src = u"%s/%s%s/%s" % (sks.install_root, self.name, sks.home, 'rpmbuild/SOURCES')
-            sources_dest = u"%s/%s" % (sks.lookaside_dir, self.name)
-
-#            print "spec_src: %s" % spec_src
-#            print "spec_dest: %s" % spec_dest
-#            print "sources_src: %s" % sources_src
-#            print "sources_dest: %s" % sources_dest
-
-            self._makedir(spec_dest)
-            self._clone_git_repo(spec_dest, u"%s/%s.git" %(sks.git_remote, self.name))
-
-            self._copy_spec(spec_src, spec_dest)
-            self._copy_patches(sources_src, spec_dest)
-
-            self._makedir(sources_dest)
-            self._copy_sources(sources_src, sources_dest)
-            self._generate_sha256(sources_dest, spec_dest)
-
-            self._update_gitignore(spec_dest)
-
-            self._do_makefile()
-            self._upload_sources(sources_dest)
-
-            self._commit_and_push()
-
-            print "Import %s complete\n" % (self.name)
-            logging.info("== Import of '%s' complete ==\n" % (srpm))
+                # make sure the github repo exists
+                self._create_gh_repo()
+                time.sleep(1)
+    
+                spec_src = u"%s/%s%s/%s/%s.spec" % (sks.install_root, self.name, sks.home, 'rpmbuild/SPECS', self.name)
+                spec_dest = u"%s/%s" % (sks.base_dir, self.name)
+                sources_src = u"%s/%s%s/%s" % (sks.install_root, self.name, sks.home, 'rpmbuild/SOURCES')
+                sources_dest = u"%s/%s" % (sks.lookaside_dir, self.name)
+    
+    #            print "spec_src: %s" % spec_src
+    #            print "spec_dest: %s" % spec_dest
+    #            print "sources_src: %s" % sources_src
+    #            print "sources_dest: %s" % sources_dest
+    
+                self._makedir(spec_dest)
+                self._clone_git_repo(spec_dest, u"%s/%s.git" %(sks.git_remote, self.name))
+    
+                self._copy_spec(spec_src, spec_dest)
+                self._copy_patches(sources_src, spec_dest)
+    
+                self._makedir(sources_dest)
+                self._copy_sources(sources_src, sources_dest)
+                self._generate_sha256(sources_dest, spec_dest)
+    
+                self._update_gitignore(spec_dest)
+    
+                self._do_makefile()
+                print "no upload %s" % args.no_upload
+                if not args.no_upload:
+                    self._upload_sources(sources_dest)
+    
+                self._commit_and_push()
+    
+                print "Import %s complete\n" % (self.name)
+                logging.info("== Import of '%s' complete ==\n" % (srpm))
 
 def main():
 
