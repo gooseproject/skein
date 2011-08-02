@@ -255,7 +255,6 @@ class PySkein:
 
         logging.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote)) 
         try:
-            print "self.repo.remotes: %s" % self.repo.remotes
             self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
         except IndexError, e:
             print "--- Push failed with error: %s ---" % e
@@ -336,7 +335,6 @@ class PySkein:
                 self._update_gitignore(spec_dest)
     
                 self._do_makefile()
-                print "no upload %s" % args.no_upload
                 if not args.no_upload:
                     self._upload_sources(sources_dest)
     
