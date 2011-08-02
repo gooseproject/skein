@@ -338,7 +338,8 @@ class PySkein:
                 if not args.no_upload:
                     self._upload_sources(sources_dest)
     
-                self._commit_and_push()
+                if not args.no_push:
+                    self._commit_and_push()
     
                 print "Import %s complete\n" % (self.name)
                 logging.info("== Import of '%s' complete ==\n" % (srpm))
