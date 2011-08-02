@@ -28,8 +28,9 @@ def main():
 #    p_upload.set_defaults(func=ps.do_sources)
 
     p_import = sp.add_parser("import", help=u"import srpm(s)")
-    #p_import.add_argument("path", nargs='+', help=u"path to srpm. If dir given, will import all srpms")
-    p_import.add_argument("path", help=u"path to srpm. If dir given, will import all srpms")
+    p_import.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
+    p_import.add_argument("-n", '--no-upload', action='store_true', help=u"If set, sources will not be uploaded to lookaside cache")
+    #p_import.add_argument("path", help=u"path to srpm. If dir given, will import all srpms")
     p_import.set_defaults(func=ps.do_import)
 
     p_deplist = sp.add_parser("deplist", help=u"return dependencies to build srpm")
