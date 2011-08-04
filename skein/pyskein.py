@@ -136,6 +136,7 @@ class PySkein:
             logging.info("  Remote '%s/%s' created" % (ghs.org, repo.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
+            logging.debug("  github error: %s" %e)
             logging.info("  Remote '%s/%s' already exists" % (ghs.org, self.name))
             #print str(e.message)
             pass
