@@ -136,6 +136,7 @@ class PySkein:
             logging.info("  Remote '%s/%s' created" % (ghs.org, repo.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
+            logging.debug("  github error: %s" %e)
             logging.info("  Remote '%s/%s' already exists" % (ghs.org, self.name))
             #print str(e.message)
             pass
@@ -255,7 +256,6 @@ class PySkein:
 
         logging.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote)) 
         try:
-            print "self.repo.remotes: %s" % self.repo.remotes
             self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
         except IndexError, e:
             print "--- Push failed with error: %s ---" % e
@@ -336,11 +336,11 @@ class PySkein:
                 self._update_gitignore(spec_dest)
     
                 self._do_makefile()
-                print "no upload %s" % args.no_upload
                 if not args.no_upload:
                     self._upload_sources(sources_dest)
     
-                self._commit_and_push()
+                if not args.no_push:
+                    self._commit_and_push()
     
                 print "Import %s complete\n" % (self.name)
                 logging.info("== Import of '%s' complete ==\n" % (srpm))
