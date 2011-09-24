@@ -39,6 +39,11 @@ def main():
     p_deplist.add_argument("path", help=u"path to srpm. If dir given, will import all srpms")
     p_deplist.set_defaults(func=ps.list_deps)
 
+    p_request = sp.add_parser("request", help=u"import srpm(s)")
+    p_request.add_argument("name", help=u"name of repository being requsted.")
+    p_request.add_argument("-m", "--message", help="Include description with request")
+    p_request.set_defaults(func=ps.request_gh_repo)
+
     args = p.parse_args()
 #    print "Args: %s" % str(args)
 

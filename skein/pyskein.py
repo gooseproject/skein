@@ -124,6 +124,30 @@ class PySkein:
         for patch in self.patches:
             logging.info("  %s to %s" % (patch, patches_dest))
             shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
+
+    def request_gh_repo(self, args):
+        self.name = args.name
+        message = args.message
+
+        logging.info("== Requesting github repository for '%s/%s' ==" % (ghs.org, self.name))
+        # probably should search through open requests before filing issue
+        # FIXME
+
+        # if the description isn't passed, open an editor for the user
+        if not message:
+            message = "Create me a repo for %s" % self.name
+            pass
+
+        try:
+            github = Github(username=ghs.username, api_token=ghs.api_token)
+            request = github.issues.open(u"%s" % ghs.issue_project, ghs.issue_title % self.name, message)
+            github.issues.add_label(u"%s" % (ghs.issue_project), request.number, ghs.new_repo_issue_label)
+
+            logging.info("  Request for '%s/%s' made" % (ghs.org, self.name))
+        except RuntimeError, e:
+            # assume repo already exists if this is thrown
+            logging.debug("  github error: %s" %e)
+
     
     def _create_gh_repo(self):
         logging.info("== Creating github repository '%s/%s' ==" % (ghs.org, self.name))
