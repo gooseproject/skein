@@ -8,6 +8,7 @@ import time
 import shutil
 import hashlib
 import logging
+import tempfile
 import argparse
 import subprocess
 
@@ -24,6 +25,14 @@ import skein_settings as sks
 # github api and token should be kept secret
 import github_settings as ghs
 from github2.client import Github
+
+class SkeinError(Exception):
+
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        repr(self.value)
 
 class PySkein:
     """
@@ -135,15 +144,37 @@ class PySkein:
 
         # if the description isn't passed, open an editor for the user
         if not message:
-            message = "Create me a repo for %s" % self.name
-            pass
+            editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else sks.editor
+
+            tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
+
+            tmp_file.write(sks.initial_message)
+            tmp_file.flush()
+
+            cmd = [editor, tmp_file.name]
+            p = subprocess.call(cmd)
+            f = open(tmp_file.name, 'r')
+            message = f.read()[0:-1]
+
+            if not message:
+                raise SkeinError("Description required.")
 
         try:
             github = Github(username=ghs.username, api_token=ghs.api_token)
-            request = github.issues.open(u"%s" % ghs.issue_project, ghs.issue_title % self.name, message)
-            github.issues.add_label(u"%s" % (ghs.issue_project), request.number, ghs.new_repo_issue_label)
 
-            logging.info("  Request for '%s/%s' made" % (ghs.org, self.name))
+            for i in github.issues.list_by_label('gooseproject/gooseproject-main', 'new repo'):
+                if i.title.lower().endswith(self.name):
+                    print "Possible conflict with package: %s" % i.title.split()[-1]
+                    print "https://github.com/%s/issues/%d." % (ghs.issue_project, i.number) 
+                    raise SkeinError("Please file this request at github.com if you are sure this is not a conflict.")
+
+            req = github.issues.open(u"%s" % ghs.issue_project, ghs.issue_title % self.name, message)
+            github.issues.add_label(u"%s" % (ghs.issue_project), req.number, ghs.new_repo_issue_label)
+
+            print "Issue %d created for new repo: %s." % (req.number, self.name)
+            print "Visit https://github.com/%s/issues/%d to assign or view the issue." % (ghs.issue_project, req.number)
+
+            logging.info("  Request for '%s/%s' complete" % (ghs.org, self.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             logging.debug("  github error: %s" %e)
