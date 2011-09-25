@@ -13,7 +13,7 @@ repo_teams = ['92600', '91933']
 issue_project = 'gooseproject/gooseproject-main'
 
 # consistent title for each issue
-issue_title = 'NEW REPO: %s"
+issue_title = "NEW REPO: %s"
 
 # create an issue label on the above project, will be used to identify new repo requests
 new_repo_issue_label = 'new repo'
