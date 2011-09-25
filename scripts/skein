@@ -10,11 +10,11 @@ import subprocess
 # import the rpm parsing stuff
 import rpm
 
-from skein import pyskein
+from skein.pyskein import *
 
 def main():
 
-    ps = pyskein.PySkein()
+    ps = PySkein()
 
     p = argparse.ArgumentParser(
             description=u"Imports all src.rpms into git and lookaside cache",
@@ -47,7 +47,11 @@ def main():
     args = p.parse_args()
 #    print "Args: %s" % str(args)
 
-    args.func(args)
+    try:
+        args.func(args)
+    except SkeinError, e:
+        print e.value
+        sys.exit(1)
 
 if __name__ == "__main__":
     raise SystemExit(main())
