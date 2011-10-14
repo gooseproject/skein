@@ -163,7 +163,6 @@ class PySkein:
                 print k + " = " + v
                 self.cfgs[section][k] = v
 
-
         logging.basicConfig(filename=self.cfgs['logger']['file'], level=self.cfgs['logger']['level'], 
                 format=self.cfgs['logger']['format'], datefmt=self.cfgs['logger']['dateformat'])
 
