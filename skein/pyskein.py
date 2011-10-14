@@ -11,9 +11,14 @@ import logging
 import tempfile
 import argparse
 import subprocess
+import ConfigParser
 
 # import the rpm parsing stuff
 import rpm
+
+# koji can replace rpm above and do package building
+import koji
+import xmlrpclib
 
 # GitPython
 import git
@@ -34,6 +39,103 @@ class SkeinError(Exception):
     def __str__(self):
         repr(self.value)
 
+# Add a class stolen from /usr/bin/koji to watch tasks
+# this was cut/pasted from koji, and then modified for local use.
+# The formatting is koji style, not the stile of this file.  Do not use these
+# functions as a style guide.
+# This is fragile and hopefully will be replaced by a real kojiclient lib.
+class TaskWatcher(object):
+
+    def __init__(self,task_id,session,level=0,quiet=False):
+        self.id = task_id
+        self.session = session
+        self.info = None
+        self.level = level
+        self.quiet = quiet
+
+    #XXX - a bunch of this stuff needs to adapt to different tasks
+
+    def str(self):
+        if self.info:
+            label = koji.taskLabel(self.info)
+            return "%s%d %s" % ('  ' * self.level, self.id, label)
+        else:
+            return "%s%d" % ('  ' * self.level, self.id)
+
+    def __str__(self):
+        return self.str()
+
+    def get_failure(self):
+        """Print infomation about task completion"""
+        if self.info['state'] != koji.TASK_STATES['FAILED']:
+            return ''
+        error = None
+        try:
+            result = self.session.getTaskResult(self.id)
+        except (xmlrpclib.Fault,koji.GenericError),e:
+            error = e
+        if error is None:
+            # print "%s: complete" % self.str()
+            # We already reported this task as complete in update()
+            return ''
+        else:
+            return '%s: %s' % (error.__class__.__name__, str(error).strip())
+
+    def update(self):
+        """Update info and log if needed.  Returns True on state change."""
+        if self.is_done():
+            # Already done, nothing else to report
+            return False
+        last = self.info
+        self.info = self.session.getTaskInfo(self.id, request=True)
+        if self.info is None:
+            logging.error("No such task id: %i" % self.id)
+            print "No such task id: %i" % self.id
+            sys.exit(1)
+        state = self.info['state']
+        if last:
+            #compare and note status changes
+            laststate = last['state']
+            if laststate != state:
+                msg = "%s: %s -> %s" % (self.str(), self.display_state(last), self.display_state(self.info))
+                logging.info(msg)
+                print msg
+                return True
+            return False
+        else:
+            # First time we're seeing this task, so just show the current state
+            logging.info("%s: %s" % (self.str(), self.display_state(self.info)))
+            print "%s: %s" % (self.str(), self.display_state(self.info))
+            return False
+
+    def is_done(self):
+        if self.info is None:
+            return False
+        state = koji.TASK_STATES[self.info['state']]
+        return (state in ['CLOSED','CANCELED','FAILED'])
+
+    def is_success(self):
+        if self.info is None:
+            return False
+        state = koji.TASK_STATES[self.info['state']]
+        return (state == 'CLOSED')
+
+    def display_state(self, info):
+        # We can sometimes be passed a task that is not yet open, but
+        # not finished either.  info would be none.
+        if not info:
+            return 'unknown'
+        if info['state'] == koji.TASK_STATES['OPEN']:
+            if info['host_id']:
+                host = self.session.getHost(info['host_id'])
+                return 'open (%s)' % host['name']
+            else:
+                return 'open'
+        elif info['state'] == koji.TASK_STATES['FAILED']:
+            return 'FAILED: %s' % self.get_failure()
+        else:
+            return koji.TASK_STATES[info['state']].lower()
+
 class PySkein:
     """
     Support class for skein. Does single and mass imports, upload, verify, sources, 
@@ -46,10 +148,93 @@ class PySkein:
         self._makedir(sks.install_root)
         logging.basicConfig(filename=sks.logfile, level=sks.loglevel, format=sks.logformat, datefmt=sks.logdateformat)
 
+        self.username = None
+
+        config = ConfigParser.ConfigParser()
+        f = open('/etc/skein/skein.cfg')
+        config.readfp(f)
+        f.close()
+
+        if config.has_section('koji'):
+
+            for cfg in config.items('koji'):
+                if cfg[0] == 'username':
+                    self.username = cfg[1]
+
+        #print "self.username: %s" % self.username
+
+
     def _makedir(self, target, perms=0775):
         if not os.path.isdir(u"%s" % (target)):
             os.makedirs(u"%s" % (target), perms)
-    
+
+    def _init_koji(self, user=None, kojiconfig=None, url=None):
+        """Initiate a koji session.  Available options are:
+
+        user: User to log into koji as (if no user, no login)
+
+        kojiconfig: Use an alternate koji config file
+
+        This function attempts to log in and returns nothing or raises.
+
+        """
+
+        # Code from /usr/bin/koji. Should be in a library!
+        defaults = {
+                    'server' : 'http://localhost/kojihub',
+                    'weburl' : 'http://localhost/koji',
+                    'pkgurl' : 'http://localhost/packages',
+                    'topdir' : '/mnt/koji',
+                    'cert': '~/.koji/client.crt',
+                    'ca': '~/.koji/clientca.crt',
+                    'serverca': '~/.koji/serverca.crt',
+                    'authtype': None
+                    }
+        # Process the configs in order, global, user, then any option passed
+        configs = ['/etc/koji.conf', os.path.expanduser('~/.koji/config')]
+        if kojiconfig:
+            configs.append(os.path.join(kojiconfig))
+        for configFile in configs:
+            if os.access(configFile, os.F_OK):
+                f = open(configFile)
+                config = ConfigParser.ConfigParser()
+                config.readfp(f)
+                f.close()
+                if config.has_section('koji'):
+                    for name, value in config.items('koji'):
+                        if defaults.has_key(name):
+                            defaults[name] = value
+        # Expand out the directory options
+        for name in ('topdir', 'cert', 'ca', 'serverca'):
+            defaults[name] = os.path.expanduser(defaults[name])
+        session_opts = {'user': user}
+        # We assign the kojisession to our self as it can be used later to
+        # watch the tasks.
+        logging.debug('Initiating a koji session to %s' % defaults['server'])
+        try:
+            if user:
+                self.kojisession = koji.ClientSession(defaults['server'],
+                                                      session_opts)
+
+                logging.debug('Logged into a koji session to %s as %s' % (defaults['server'], user ))
+            else:
+                self.kojisession = koji.ClientSession(defaults['server'])
+        except:
+            raise FedpkgError('Could not initiate koji session')
+        # save the weburl for later use too
+        self.kojiweburl = defaults['weburl']
+        logging.debug('Kojiweb URL: %s' % self.kojiweburl)
+        # log in using ssl
+        if user:
+            try:
+                self.kojisession.ssl_login(defaults['cert'], defaults['ca'],
+                                           defaults['serverca'])
+            except:
+                raise SkeinError('Opening a SSL connection failed')
+            if not self.kojisession.logged_in:
+                raise SkeinError('Could not auth with koji as %s' % user)
+        return
+
     # grab the details from the rpm and add them to the object
     def _set_srpm_details(self, srpm):
 
@@ -143,7 +328,7 @@ class PySkein:
         # FIXME
 
         # if the description isn't passed, open an editor for the user
-        if not message:
+        if not reason:
             editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else sks.editor
 
             tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
@@ -154,9 +339,9 @@ class PySkein:
             cmd = [editor, tmp_file.name]
             p = subprocess.call(cmd)
             f = open(tmp_file.name, 'r')
-            message = f.read()[0:-1]
+            reason = f.read()[0:-1]
 
-            if not message:
+            if not reason:
                 raise SkeinError("Description required.")
 
         try:
@@ -168,11 +353,12 @@ class PySkein:
                     print "https://github.com/%s/issues/%d." % (ghs.issue_project, i.number) 
                     raise SkeinError("Please file this request at github.com if you are sure this is not a conflict.")
 
-            req = github.issues.open(u"%s" % ghs.issue_project, ghs.issue_title % self.name, message)
+            req = github.issues.open(u"%s" % ghs.issue_project, ghs.issue_title % self.name, reason)
             github.issues.add_label(u"%s" % (ghs.issue_project), req.number, ghs.new_repo_issue_label)
 
-            print "Issue %d created for new repo: %s." % (req.number, self.name)
-            print "Visit https://github.com/%s/issues/%d to assign or view the issue." % (ghs.issue_project, req.number)
+            if req:
+                print "Issue %d created for new repo: %s." % (req.number, self.name)
+                print "Visit https://github.com/%s/issues/%d to assign or view the issue." % (ghs.issue_project, req.number)
 
             logging.info("  Request for '%s/%s' complete" % (ghs.org, self.name))
         except RuntimeError, e:
@@ -335,6 +521,94 @@ class PySkein:
             print "'%s' is not valid" % path
             sys.exit(1)
 
+    def _watch_koji_tasks(self, session, tasklist, quiet=False):
+        if not tasklist:
+            return
+        logging.info('Watching tasks (this may be safely interrupted)...')
+        print 'Watching tasks (this may be safely interrupted)...'
+        # Place holder for return value
+        rv = 0
+        try:
+            tasks = {}
+            for task_id in tasklist:
+                tasks[task_id] = TaskWatcher(task_id, session, quiet=quiet)
+            while True:
+                all_done = True
+                for task_id,task in tasks.items():
+                    changed = task.update()
+                    if not task.is_done():
+                        all_done = False
+                    else:
+                        if changed:
+                            # task is done and state just changed
+                            if not quiet:
+                                pass
+                                #_display_tasklist_status(tasks)
+                        if not task.is_success():
+                            rv = 1
+                    for child in session.getTaskChildren(task_id):
+                        child_id = child['id']
+                        if not child_id in tasks.keys():
+                            tasks[child_id] = TaskWatcher(child_id, session, task.level + 1, quiet=quiet)
+                            tasks[child_id].update()
+                            # If we found new children, go through the list again,
+                            # in case they have children also
+                            all_done = False
+                if all_done:
+                    if not quiet:
+                        print
+                        #_display_task_results(tasks)
+                    break
+
+                time.sleep(1)
+        except (KeyboardInterrupt):
+            if tasks:
+                kbd_msg = """\nTasks still running. You can continue to watch with the 'koji watch-task' command.  Running Tasks: %s""" % '\n'.join(['%s: %s' % (t.str(), t.display_state(t.info)) for t in tasks.values() if not t.is_done()])
+                logging.info(kbd_msg)
+                print kbd_msg
+
+            # /us/rbin/koji considers a ^c while tasks are running to be a
+            # non-zero exit.  I don't quite agree, so I comment it out here.
+            #rv = 1
+        return rv
+
+    def do_build_pkg(self, args):
+
+        kojiconfig = None
+        if args.config:
+            kojiconfig = args.config
+
+        self._init_koji(user=self.username, kojiconfig=kojiconfig)
+        build_target = self.kojisession.getBuildTarget(args.target)
+
+        #print "Args.Target: %s" % args
+        #print "Build Target: %s" % build_target
+
+        if not build_target:
+            raise SkeinError('Unknown build target: %s' % args.target)
+
+        dest_tag = self.kojisession.getTag(build_target['dest_tag_name'])
+        #print "Dest Tag: %s" % dest_tag
+
+        if not dest_tag:
+            raise SkeinError('Unknown destination tag %s' %
+                              build_target['dest_tag_name'])
+
+        if dest_tag['locked']:
+            raise SkeinError('Destination tag %s is locked' % dest_tag['name'])
+
+        opts = {}
+        priority = 5
+
+        task_id = self.kojisession.build('git://github.com/gooselinux/%s.git#HEAD' % args.name, args.target, opts, priority=priority)
+
+        #print "Task-ID: %s" % task_id
+        print "Task URL: %s/%s?taskID=%s" % ('http://koji.gooselinux.org/koji', 'taskinfo', task_id) 
+
+        self._watch_koji_tasks(self.kojisession, [task_id])
+
+        self.kojisession.logout()
+
 
     def list_deps(self, args):
 
@@ -404,12 +678,17 @@ def main():
 
     ps = PySkein()
 
+
     p = argparse.ArgumentParser(
             description='''Imports all src.rpms into git and lookaside cache''',
         )
 
-    p.add_argument('path', help='path to src.rpms')
-    p.set_defaults(func=ps.do_import)
+
+    p.add_argument("target", help=u"tag applied to successful build")
+    p.add_argument("name", help=u"name of the package")
+    p.add_argument("-c", "--config", help=u"alternate path to koji config file")
+
+    p.set_defaults(func=ps.do_build_pkg)
 
     args = p.parse_args()
     args.func(args)
