@@ -157,16 +157,19 @@ class PySkein:
         self.cfgs = {}
 
         for section in config.sections():
-            print section + ":"
+#            print section + ":"
             self.cfgs[section] = {}
             for k, v in config.items(section):
-                print k + " = " + v
+#                print k + " = " + v
                 self.cfgs[section][k] = v
 
-        logging.basicConfig(filename=self.cfgs['logger']['file'], level=self.cfgs['logger']['level'], 
+#        print "Configs: %s" % self.cfgs
+
+        logging.basicConfig(filename=self.cfgs['logger']['file'], level=eval(self.cfgs['logger']['loglevel']), 
                 format=self.cfgs['logger']['format'], datefmt=self.cfgs['logger']['dateformat'])
 
-        print "Configs: %s" % self.cfgs
+
+        logging.debug('testing out logging')
  
 
 #        if config.has_section('koji'):
