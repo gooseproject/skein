@@ -146,23 +146,36 @@ class PySkein:
         self.org = ghs.org
 
         self._makedir(sks.install_root)
-        logging.basicConfig(filename=sks.logfile, level=sks.loglevel, format=sks.logformat, datefmt=sks.logdateformat)
 
         self.username = None
 
-        config = ConfigParser.ConfigParser()
+        config = ConfigParser.SafeConfigParser()
         f = open('/etc/skein/skein.cfg')
         config.readfp(f)
         f.close()
 
-        if config.has_section('koji'):
+        self.cfgs = {}
 
-            for cfg in config.items('koji'):
-                if cfg[0] == 'username':
-                    self.username = cfg[1]
+        for section in config.sections():
+            print section + ":"
+            self.cfgs[section] = {}
+            for k, v in config.items(section):
+                print k + " = " + v
+                self.cfgs[section][k] = v
 
-        #print "self.username: %s" % self.username
 
+        logging.basicConfig(filename=self.cfgs['logger']['file'], level=self.cfgs['logger']['level'], 
+                format=self.cfgs['logger']['format'], datefmt=self.cfgs['logger']['dateformat'])
+
+        print "Configs: %s" % self.cfgs
+ 
+
+#        if config.has_section('koji'):
+#
+#            for cfg in config.items('koji'):
+#                if cfg[0] == 'username':
+#                    self.username = cfg[1]
+#
 
     def _makedir(self, target, perms=0775):
         if not os.path.isdir(u"%s" % (target)):
@@ -679,19 +692,19 @@ def main():
     ps = PySkein()
 
 
-    p = argparse.ArgumentParser(
-            description='''Imports all src.rpms into git and lookaside cache''',
-        )
+#    p = argparse.ArgumentParser(
+#            description='''Imports all src.rpms into git and lookaside cache''',
+#        )
+#
+#
+#    p.add_argument("target", help=u"tag applied to successful build")
+#    p.add_argument("name", help=u"name of the package")
+#    p.add_argument("-c", "--config", help=u"alternate path to koji config file")
+#
+#    p.set_defaults(func=ps.do_build_pkg)
 
-
-    p.add_argument("target", help=u"tag applied to successful build")
-    p.add_argument("name", help=u"name of the package")
-    p.add_argument("-c", "--config", help=u"alternate path to koji config file")
-
-    p.set_defaults(func=ps.do_build_pkg)
-
-    args = p.parse_args()
-    args.func(args)
+#    args = p.parse_args()
+#    args.func(args)
 
 
 if __name__ == "__main__":
