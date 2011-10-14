@@ -38,4 +38,4 @@ loglevel=logging.DEBUG
 editor=u"/usr/bin/vim"
 
 # provide help to user 
-initial_message = "<Explain why the package is needed>\n\nPackage Description: <run rpm -qip /path/to/srpm and replace this with the Summary value.\nUpstream URL: <run rpm -qip /path/to/srpm and replace this with the URL value."
+initial_message = "<Explain why the package is needed>\n\nPackage Description: <run rpm -qip /path/to/srpm and replace this with the Summary value.\nUpstream URL: <run rpm -qip /path/to/srpm and replace this with the URL value.\nSRPM URL: <reference to upstream url for future reference as to where the sources originated>"
