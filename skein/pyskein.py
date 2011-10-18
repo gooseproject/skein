@@ -224,7 +224,7 @@ class PySkein:
             else:
                 self.kojisession = koji.ClientSession(defaults['server'])
         except:
-            raise FedpkgError('Could not initiate koji session')
+            raise SkeinError('Could not initiate koji session')
         # save the weburl for later use too
         self.kojiweburl = defaults['weburl']
         logging.debug('Kojiweb URL: %s' % self.kojiweburl)
