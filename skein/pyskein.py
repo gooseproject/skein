@@ -157,27 +157,16 @@ class PySkein:
         self.cfgs = {}
 
         for section in config.sections():
-#            print section + ":"
             self.cfgs[section] = {}
             for k, v in config.items(section):
-#                print k + " = " + v
                 self.cfgs[section][k] = v
 
-#        print "Configs: %s" % self.cfgs
 
         logging.basicConfig(filename=self.cfgs['logger']['file'], level=eval(self.cfgs['logger']['loglevel']), 
                 format=self.cfgs['logger']['format'], datefmt=self.cfgs['logger']['dateformat'])
 
 
         logging.debug('testing out logging')
- 
-
-#        if config.has_section('koji'):
-#
-#            for cfg in config.items('koji'):
-#                if cfg[0] == 'username':
-#                    self.username = cfg[1]
-#
 
     def _makedir(self, target, perms=0775):
         if not os.path.isdir(u"%s" % (target)):
