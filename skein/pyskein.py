@@ -321,10 +321,10 @@ class PySkein:
             shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
 
     def request_gh_repo(self, args):
-        self.name = args.name
-        message = args.message
+        pkg = args.name
+        reason = args.reason
 
-        logging.info("== Requesting github repository for '%s/%s' ==" % (self.org, self.name))
+        logging.info("== Requesting github repository for '%s/%s' ==" % (self.org, pkg))
         # probably should search through open requests before filing issue
         # FIXME
 
@@ -349,20 +349,20 @@ class PySkein:
             github = Github(username=self.cfgs['github']['username'], api_token=self.cfgs['github']['api_token'])
 
             for i in github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
-                if i.title.lower().find(self.name):
+                if i.title.lower().find(pkg) != -1:
                     print "Possible conflict with package: '%s'" % i.title
                     print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
                     raise SkeinError("Please file this request at %s/%s/%s if you are sure this is not a conflict."
                             % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'] ))
 
-            req = github.issues.open(u"%s" % self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % self.name, reason)
+            req = github.issues.open(u"%s" % self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % pkg, reason)
             github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), req.number, self.cfgs['github']['new_repo_issue_label'])
 
             if req:
-                print "Issue %d created for new repo: %s." % (req.number, self.name)
+                print "Issue %d created for new repo: %s." % (req.number, pkg)
                 print "Visit https://github.com/%s/issues/%d to assign or view the issue." % (self.cfgs['github']['issue_project'], req.number)
 
-            logging.info("  Request for '%s/%s' complete" % (self.org, self.name))
+            logging.info("  Request for '%s/%s' complete" % (self.org, pkg))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             logging.debug("  error: %s" %e)
