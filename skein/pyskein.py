@@ -28,7 +28,7 @@ from git.errors import InvalidGitRepositoryError, NoSuchPathError, GitCommandErr
 import skein_settings as sks
 
 # github api and token should be kept secret
-import github_settings as ghs
+#import github_settings as ghs
 from github2.client import Github
 
 class SkeinError(Exception):
@@ -143,9 +143,6 @@ class PySkein:
     """
     
     def __init__(self):
-        self.org = ghs.org
-
-        self._makedir(sks.install_root)
 
         self.username = None
 
@@ -161,12 +158,12 @@ class PySkein:
             for k, v in config.items(section):
                 self.cfgs[section][k] = v
 
+        self.org = self.cfgs['github']['org']
 
-        logging.basicConfig(filename=self.cfgs['logger']['file'], level=eval(self.cfgs['logger']['loglevel']), 
-                format=self.cfgs['logger']['format'], datefmt=self.cfgs['logger']['dateformat'])
+        self._makedir(self.cfgs['skein']['install_root'])
 
-
-        logging.debug('testing out logging')
+#        logging.basicConfig(filename=self.cfgs['logger']['file'], level=eval(self.cfgs['logger']['loglevel']),
+#                format=self.cfgs['logger']['format'], datefmt=self.cfgs['logger']['dateformat'])
 
     def _makedir(self, target, perms=0775):
         if not os.path.isdir(u"%s" % (target)):
@@ -327,7 +324,7 @@ class PySkein:
         self.name = args.name
         message = args.message
 
-        logging.info("== Requesting github repository for '%s/%s' ==" % (ghs.org, self.name))
+        logging.info("== Requesting github repository for '%s/%s' ==" % (self.org, self.name))
         # probably should search through open requests before filing issue
         # FIXME
 
@@ -349,40 +346,41 @@ class PySkein:
                 raise SkeinError("Description required.")
 
         try:
-            github = Github(username=ghs.username, api_token=ghs.api_token)
+            github = Github(username=self.cfgs['github']['username'], api_token=self.cfgs['github']['api_token'])
 
-            for i in github.issues.list_by_label('gooseproject/gooseproject-main', 'new repo'):
-                if i.title.lower().endswith(self.name):
-                    print "Possible conflict with package: %s" % i.title.split()[-1]
-                    print "https://github.com/%s/issues/%d." % (ghs.issue_project, i.number) 
-                    raise SkeinError("Please file this request at github.com if you are sure this is not a conflict.")
+            for i in github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
+                if i.title.lower().find(self.name):
+                    print "Possible conflict with package: '%s'" % i.title
+                    print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
+                    raise SkeinError("Please file this request at %s/%s/%s if you are sure this is not a conflict."
+                            % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'] ))
 
-            req = github.issues.open(u"%s" % ghs.issue_project, ghs.issue_title % self.name, reason)
-            github.issues.add_label(u"%s" % (ghs.issue_project), req.number, ghs.new_repo_issue_label)
+            req = github.issues.open(u"%s" % self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % self.name, reason)
+            github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), req.number, self.cfgs['github']['new_repo_issue_label'])
 
             if req:
                 print "Issue %d created for new repo: %s." % (req.number, self.name)
-                print "Visit https://github.com/%s/issues/%d to assign or view the issue." % (ghs.issue_project, req.number)
+                print "Visit https://github.com/%s/issues/%d to assign or view the issue." % (self.cfgs['github']['issue_project'], req.number)
 
-            logging.info("  Request for '%s/%s' complete" % (ghs.org, self.name))
+            logging.info("  Request for '%s/%s' complete" % (self.org, self.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
-            logging.debug("  github error: %s" %e)
+            logging.debug("  error: %s" %e)
 
     
     def _create_gh_repo(self):
-        logging.info("== Creating github repository '%s/%s' ==" % (ghs.org, self.name))
+        logging.info("== Creating github repository '%s/%s' ==" % (self.org, self.name))
         try:
-            github = Github(username=ghs.username, api_token=ghs.api_token)
-            repo = github.repos.create(u"%s/%s" % (ghs.org, self.name), self.summary, self.url)
+            github = Github(username=self.cfgs['github']['username'], api_token=ghs.api_token)
+            repo = github.repos.create(u"%s/%s" % (self.org, self.name), self.summary, self.url)
             for team in ghs.repo_teams:
-                github.teams.add_project(team, u"%s/%s" % (ghs.org, self.name))
+                github.teams.add_project(team, u"%s/%s" % (self.org, self.name))
 
-            logging.info("  Remote '%s/%s' created" % (ghs.org, repo.name))
+            logging.info("  Remote '%s/%s' created" % (self.org, repo.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             logging.debug("  github error: %s" %e)
-            logging.info("  Remote '%s/%s' already exists" % (ghs.org, self.name))
+            logging.info("  Remote '%s/%s' already exists" % (self.org, self.name))
             #print str(e.message)
             pass
 
@@ -582,7 +580,7 @@ class PySkein:
         if args.config:
             kojiconfig = args.config
 
-        self._init_koji(user=self.username, kojiconfig=kojiconfig)
+        self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
         build_target = self.kojisession.getBuildTarget(args.target)
 
         #print "Args.Target: %s" % args
