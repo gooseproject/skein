@@ -8,9 +8,7 @@ import time
 import shutil
 import hashlib
 import logging
-import tempfile
 import argparse
-import subprocess
 import ConfigParser
 
 # import the rpm parsing stuff
@@ -26,10 +24,7 @@ from git.errors import InvalidGitRepositoryError, NoSuchPathError, GitCommandErr
 
 # settings, including lookaside uri and temporary paths
 import skein_settings as sks
-
-# github api and token should be kept secret
-#import github_settings as ghs
-from github2.client import Github
+from gitremote import GitRemote
 
 class SkeinError(Exception):
 
@@ -158,12 +153,21 @@ class PySkein:
             for k, v in config.items(section):
                 self.cfgs[section][k] = v
 
-        self.org = self.cfgs['github']['org']
-
         self._makedir(self.cfgs['skein']['install_root'])
 
-#        logging.basicConfig(filename=self.cfgs['logger']['file'], level=eval(self.cfgs['logger']['loglevel']),
-#                format=self.cfgs['logger']['format'], datefmt=self.cfgs['logger']['dateformat'])
+        # create logger with 'spam_application'
+        self.logger = logging.getLogger('skein')
+        self.logger.setLevel(eval(self.cfgs['logger']['loglevel']))
+
+        # create file handler which logs even debug messages
+        fh = logging.FileHandler(self.cfgs['logger']['file'])
+        fh.setLevel(eval(self.cfgs['logger']['loglevel']))
+
+        # create formatter and add it to the handlers
+        formatter = logging.Formatter(self.cfgs['logger']['format'])
+        fh.setFormatter(formatter)
+        # add the handlers to the logger
+        self.logger.addHandler(fh)
 
     def _makedir(self, target, perms=0775):
         if not os.path.isdir(u"%s" % (target)):
@@ -320,69 +324,6 @@ class PySkein:
             logging.info("  %s to %s" % (patch, patches_dest))
             shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
 
-    def request_gh_repo(self, args):
-        pkg = args.name
-        reason = args.reason
-
-        logging.info("== Requesting github repository for '%s/%s' ==" % (self.org, pkg))
-        # probably should search through open requests before filing issue
-        # FIXME
-
-        # if the description isn't passed, open an editor for the user
-        if not reason:
-            editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else sks.editor
-
-            tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
-
-            tmp_file.write(sks.initial_message)
-            tmp_file.flush()
-
-            cmd = [editor, tmp_file.name]
-            p = subprocess.call(cmd)
-            f = open(tmp_file.name, 'r')
-            reason = f.read()[0:-1]
-
-            if not reason:
-                raise SkeinError("Description required.")
-
-        try:
-            github = Github(username=self.cfgs['github']['username'], api_token=self.cfgs['github']['api_token'])
-
-            for i in github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
-                if i.title.lower().find(pkg) != -1:
-                    print "Possible conflict with package: '%s'" % i.title
-                    print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
-                    raise SkeinError("Please file this request at %s/%s/%s if you are sure this is not a conflict."
-                            % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'] ))
-
-            req = github.issues.open(u"%s" % self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % pkg, reason)
-            github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), req.number, self.cfgs['github']['new_repo_issue_label'])
-
-            if req:
-                print "Issue %d created for new repo: %s." % (req.number, pkg)
-                print "Visit https://github.com/%s/issues/%d to assign or view the issue." % (self.cfgs['github']['issue_project'], req.number)
-
-            logging.info("  Request for '%s/%s' complete" % (self.org, pkg))
-        except RuntimeError, e:
-            # assume repo already exists if this is thrown
-            logging.debug("  error: %s" %e)
-
-    
-    def _create_gh_repo(self):
-        logging.info("== Creating github repository '%s/%s' ==" % (self.org, self.name))
-        try:
-            github = Github(username=self.cfgs['github']['username'], api_token=ghs.api_token)
-            repo = github.repos.create(u"%s/%s" % (self.org, self.name), self.summary, self.url)
-            for team in ghs.repo_teams:
-                github.teams.add_project(team, u"%s/%s" % (self.org, self.name))
-
-            logging.info("  Remote '%s/%s' created" % (self.org, repo.name))
-        except RuntimeError, e:
-            # assume repo already exists if this is thrown
-            logging.debug("  github error: %s" %e)
-            logging.info("  Remote '%s/%s' already exists" % (self.org, self.name))
-            #print str(e.message)
-            pass
 
     # create a git repository pointing to appropriate github repo
     def _clone_git_repo(self, repo_dir, scm_url):
@@ -574,6 +515,24 @@ class PySkein:
             #rv = 1
         return rv
 
+    def request_remote_repo(self, args):
+
+        remoteClassName = self.cfgs['git']['remote_class']
+        remoteModuleName = self.cfgs['git']['remote_module']
+
+        try:
+            remoteModule = __import__(remoteModuleName,
+                                      globals(),
+                                      locals(),
+                                      [remoteClassName])
+            self.gitremote = GitRemote(remoteModule.__dict__[remoteClassName], self.cfgs, self.logger)
+            return self.gitremote.request_remote_repo(args.name, args.reason)
+
+        except ImportError, e:
+            print "Remote class %s in module %s not found" % (remoteClassName,
+                                                              remoteModuleName)
+
+
     def do_build_pkg(self, args):
 
         kojiconfig = None
@@ -641,7 +600,7 @@ class PySkein:
                 self._install_srpm(u"%s" % (srpm))
     
                 # make sure the github repo exists
-                self._create_gh_repo()
+                self._create_remote_repo()
                 time.sleep(1)
     
                 spec_src = u"%s/%s%s/%s/%s.spec" % (sks.install_root, self.name, sks.home, 'rpmbuild/SPECS', self.name)
@@ -681,19 +640,15 @@ def main():
     ps = PySkein()
 
 
-#    p = argparse.ArgumentParser(
-#            description='''Imports all src.rpms into git and lookaside cache''',
-#        )
-#
-#
-#    p.add_argument("target", help=u"tag applied to successful build")
-#    p.add_argument("name", help=u"name of the package")
-#    p.add_argument("-c", "--config", help=u"alternate path to koji config file")
-#
-#    p.set_defaults(func=ps.do_build_pkg)
+    p = argparse.ArgumentParser(
+            description='''Imports all src.rpms into git and lookaside cache''',
+        )
 
-#    args = p.parse_args()
-#    args.func(args)
+
+    p.set_defaults(func=ps.request_remote_repo)
+
+    args = p.parse_args()
+    args.func(args)
 
 
 if __name__ == "__main__":
