@@ -42,7 +42,7 @@ def main():
     p_request = sp.add_parser("request", help=u"import srpm(s)")
     p_request.add_argument("name", help=u"name of repository being requsted.")
     p_request.add_argument("-r", "--reason", help="Include reason with request")
-    p_request.set_defaults(func=ps.request_gh_repo)
+    p_request.set_defaults(func=ps.request_remote_repo)
 
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")
