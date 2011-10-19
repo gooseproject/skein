@@ -19,5 +19,8 @@ class GitRemote():
     def request_remote_repo(self, name, reason):
         return self.remote.request_remote_repo(name, reason)
 
+    def search_repo_requests(self, state='open'):
+        return self.remote.search_repo_requests(state)
+
     def create_remote_repo(self, name, summary, url):
         return self.remote.create_remote_repo(name, summary, url)

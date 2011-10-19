@@ -31,6 +31,10 @@ class GithubRemote(GitRemote):
     def __str__(self):
         return self.name
 
+    def _login(self):
+
+        return Github(username=self.cfgs['github']['username'], api_token=self.cfgs['github']['api_token'])
+
     def request_remote_repo(self, pkg, reason):
 
         self.logger.info("== Requesting github repository for '%s/%s' ==" % (self.org, pkg))
@@ -53,7 +57,7 @@ class GithubRemote(GitRemote):
                 raise SkeinError("Description required.")
 
         try:
-            github = Github(username=self.cfgs['github']['username'], api_token=self.cfgs['github']['api_token'])
+            github = self._login()
 
             for i in github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
                 if i.title.lower().find(pkg) != -1:
@@ -73,11 +77,31 @@ class GithubRemote(GitRemote):
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  error: %s" %e)
+
+    def search_repo_requests(self, state='open'):
+        self.logger.info("== Searching %s github repository requests from '%s' ==" % (state, self.org))
+
+        newrepo = []
+        try:
+            github = self._login()
+            issues = github.issues.list(self.cfgs['github']['issue_project'])
+
+            [newrepo.append(i) for i in issues if 'new repo' in i.labels]
+            self.logger.info("  Grabbed %d new repo requests" % (len(newrepo)))
+        except RuntimeError, e:
+            # assume repo already exists if this is thrown
+            self.logger.debug("  github error: %s" %e)
+
+        print u"#\tDescription\t\tRequestor\tURL"
+        print u"---------------------------------------------------"
+        for r in newrepo:
+            print u"%d\t%s\t\t%s\t\t%s/%s/%s/%d" % ( r.number, r.title[:25], r.user, self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], r.number)
+        print
     
     def create_remote_repo(self):
         self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, self.name))
         try:
-            github = Github(username=self.cfgs['github']['username'], api_token=ghs.api_token)
+            github = self._login()
             repo = github.repos.create(u"%s/%s" % (self.org, self.name), self.summary, self.url)
             for team in ghs.repo_teams:
                 github.teams.add_project(team, u"%s/%s" % (self.org, self.name))

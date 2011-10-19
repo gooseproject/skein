@@ -515,7 +515,7 @@ class PySkein:
             #rv = 1
         return rv
 
-    def request_remote_repo(self, args):
+    def _init_git_remote(self):
 
         remoteClassName = self.cfgs['git']['remote_class']
         remoteModuleName = self.cfgs['git']['remote_module']
@@ -526,12 +526,22 @@ class PySkein:
                                       locals(),
                                       [remoteClassName])
             self.gitremote = GitRemote(remoteModule.__dict__[remoteClassName], self.cfgs, self.logger)
-            return self.gitremote.request_remote_repo(args.name, args.reason)
-
         except ImportError, e:
             print "Remote class %s in module %s not found" % (remoteClassName,
                                                               remoteModuleName)
 
+    def request_remote_repo(self, args):
+        self._init_git_remote()
+        return self.gitremote.request_remote_repo(args.name, args.reason)
+
+    def search_repo_requests(self, args):
+        self._init_git_remote()
+        state = 'open'
+
+        if args.state:
+            state = 'closed'
+
+        return self.gitremote.search_repo_requests(state=state)
 
     def do_build_pkg(self, args):
 
