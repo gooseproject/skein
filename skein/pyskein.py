@@ -543,6 +543,20 @@ class PySkein:
 
         return self.gitremote.search_repo_requests(state=state)
 
+    def grant_request(self, args):
+        self._init_git_remote()
+
+        kojiconfig = None
+        if args.config:
+            kojiconfig = args.config
+
+#        self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
+
+        name, summary, url = self.gitremote.get_request_by_id(args.id)
+
+        print "Name: %s\nSummary: %s\nURL: %s\n" % (name, summary, url)
+#        self.gitremote.create_remote_repo(args.id)
+
     def do_build_pkg(self, args):
 
         kojiconfig = None

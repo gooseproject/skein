@@ -40,9 +40,14 @@ def main():
     p_deplist.set_defaults(func=ps.list_deps)
 
     p_request = sp.add_parser("request", help=u"request a new repo for upstream")
-    p_request.add_argument("name", help=u"name of repository being requsted.")
+    p_request.add_argument("name", help=u"name of repository being requested")
     p_request.add_argument("-r", "--reason", metavar="reason", help="Include reason with request")
     p_request.set_defaults(func=ps.request_remote_repo)
+
+    p_grant = sp.add_parser("grant", help=u"create new upstream repo and add package to koji")
+    p_grant.add_argument("id", help=u"id of new repo request being created")
+    p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
+    p_grant.set_defaults(func=ps.grant_request)
 
     p_query = sp.add_parser("query", help=u"query upstream repo requests")
     p_query.add_argument("-s", "--state", metavar="state", help="'open' (default) or 'closed'")
@@ -54,9 +59,7 @@ def main():
     p_build.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
     p_build.set_defaults(func=ps.do_build_pkg)
 
-
     args = p.parse_args()
-#    print "Args: %s" % str(args)
 
     try:
         args.func(args)
