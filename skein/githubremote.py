@@ -79,12 +79,12 @@ class GithubRemote(GitRemote):
             self.logger.debug("  error: %s" %e)
 
     def search_repo_requests(self, state='open'):
-        self.logger.info("== Searching %s github repository requests from '%s' ==" % (state, self.org))
+        self.logger.info("== Searching '%s' github repository requests from '%s' ==" % (state, self.org))
 
         newrepo = []
         try:
             github = self._login()
-            issues = github.issues.list(self.cfgs['github']['issue_project'])
+            issues = github.issues.list(self.cfgs['github']['issue_project'], state=state)
 
             [newrepo.append(i) for i in issues if 'new repo' in i.labels]
             self.logger.info("  Grabbed %d new repo requests" % (len(newrepo)))
@@ -92,10 +92,10 @@ class GithubRemote(GitRemote):
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
 
-        print u"#\tDescription\t\tRequestor\tURL"
-        print u"---------------------------------------------------"
+        print u"#\tDescription\t\t\t\tRequestor\tURL"
+        print u"-------------------------------------------------------------------"
         for r in newrepo:
-            print u"%d\t%s\t\t%s\t\t%s/%s/%s/%d" % ( r.number, r.title[:25], r.user, self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], r.number)
+            print u"%d\t%s\t\t%s\t\t%s/%s/%s/%d" % ( r.number, r.title.ljust(25), r.user, self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], r.number)
         print
     
     def create_remote_repo(self):
