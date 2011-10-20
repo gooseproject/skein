@@ -45,16 +45,26 @@ class GithubRemote(GitRemote):
 
             tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
 
-            tmp_file.write(sks.initial_message)
+            tmp_file.write(self.cfgs['github']['initial_message'])
             tmp_file.flush()
 
             cmd = [editor, tmp_file.name]
-            p = subprocess.call(cmd)
-            f = open(tmp_file.name, 'r')
-            reason = f.read()[0:-1]
 
-            if not reason:
-                raise SkeinError("Description required.")
+            try:
+                p = subprocess.check_call(cmd)
+                f = open(tmp_file.name, 'r')
+                reason = f.read()
+
+#                print "r: %s" % reason
+#                print "i: %s" % self.cfgs['github']['initial_message']
+
+                if not reason:
+                    raise SkeinError("Description required.")
+                elif reason == self.cfgs['github']['initial_message']:
+                    raise SkeinError("Description has not changed.")
+
+            except subprocess.CalledProcessError:
+                raise SkeinError("Action cancelled by user.")
 
         try:
             github = self._login()
@@ -97,20 +107,42 @@ class GithubRemote(GitRemote):
         for r in newrepo:
             print u"%d\t%s\t\t%s\t\t%s/%s/%s/%d" % ( r.number, r.title.ljust(25), r.user, self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], r.number)
         print
-    
-    def create_remote_repo(self):
-        self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, self.name))
+
+    def _parse_issue_body(self, body):
+
+        print "Body: %s" % body
+        return ['test', 'test summary', 'http://testurl']
+
+    def get_request_by_id(self, request_id):
         try:
             github = self._login()
-            repo = github.repos.create(u"%s/%s" % (self.org, self.name), self.summary, self.url)
-            for team in ghs.repo_teams:
-                github.teams.add_project(team, u"%s/%s" % (self.org, self.name))
+            issue = github.issues.show(self.cfgs['github']['issue_project'], request_id)
+
+            test = self._parse_issue_body(issue.body)
+
+            print "Issue Name: %s" % test[0]
+            print "Issue Summary: %s" % test[1]
+            print "Issue URL: %s" % test[2]
+
+            return test
+
+        except RuntimeError, e:
+            # assume repo already exists if this is thrown
+            self.logger.debug("  github error: %s" %e)
+            print "Remote '%s/%s' already exists" % (self.org, name)
+    
+    def create_remote_repo(self, name, summary=None, url=None):
+        self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, name))
+        try:
+            github = self._login()
+            repo = github.repos.create(u"%s/%s" % (self.org, name), summary, url)
+            for team in self.cfgs['github']['repo_teams']:
+                github.teams.add_project(team, u"%s/%s" % (self.org, name))
 
             self.logger.info("  Remote '%s/%s' created" % (self.org, repo.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
-            self.logger.info("  Remote '%s/%s' already exists" % (self.org, self.name))
-            #print str(e.message)
-            pass
+            self.logger.info("  Remote '%s/%s' already exists" % (self.org, name))
+            print "Remote '%s/%s' already exists" % (self.org, name)
 
