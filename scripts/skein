@@ -17,7 +17,7 @@ def main():
     ps = PySkein()
 
     p = argparse.ArgumentParser(
-            description=u"Imports all src.rpms into git and lookaside cache",
+            description=u"manage source repositories for The GoOSe Project",
         )
 
     sp = p.add_subparsers()
@@ -52,6 +52,10 @@ def main():
     p_query = sp.add_parser("query", help=u"query upstream repo requests")
     p_query.add_argument("-s", "--state", metavar="state", help="'open' (default) or 'closed'")
     p_query.set_defaults(func=ps.search_repo_requests)
+
+    p_query = sp.add_parser("show", help=u"show detail of a particular request")
+    p_query.add_argument("id", help="request id from ticket tracker")
+    p_query.set_defaults(func=ps.show_request_by_id)
 
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")

@@ -543,6 +543,17 @@ class PySkein:
 
         return self.gitremote.search_repo_requests(state=state)
 
+    def show_request_by_id(self, args):
+        self._init_git_remote()
+
+        name, summary, url = self.gitremote.show_request_by_id(args.id)
+
+        print "\nDetails for request # %s" % args.id
+        print "-------------------------"
+        print "Package Name: %s" % name
+        print "Package Summary: %s" % summary
+        print "Package URL: %s\n" % url
+
     def grant_request(self, args):
         self._init_git_remote()
 

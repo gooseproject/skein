@@ -108,28 +108,34 @@ class GithubRemote(GitRemote):
             print u"%d\t%s\t\t%s\t\t%s/%s/%s/%d" % ( r.number, r.title.ljust(25), r.user, self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], r.number)
         print
 
-    def _parse_issue_body(self, body):
+    def _get_request_detail(self, request):
 
-        print "Body: %s" % body
-        return ['test', 'test summary', 'http://testurl']
+        details = []
 
-    def get_request_by_id(self, request_id):
+        title = request.title
+        details.append(title[title.find(":")+1:].strip())
+
+        lines = request.body.split('\n')
+
+        for l in lines:
+            if l.lower().startswith("summary:") or l.lower().startswith("package description:"):
+                details.append(l[l.find(":")+1:].strip())
+            if l.lower().startswith("url:") or l.lower().startswith("upstream url:"):
+                details.append(l[l.find(":")+1:].strip())
+
+        return details
+
+    def show_request_by_id(self, request_id):
         try:
             github = self._login()
-            issue = github.issues.show(self.cfgs['github']['issue_project'], request_id)
+            request = github.issues.show(self.cfgs['github']['issue_project'], request_id)
 
-            test = self._parse_issue_body(issue.body)
-
-            print "Issue Name: %s" % test[0]
-            print "Issue Summary: %s" % test[1]
-            print "Issue URL: %s" % test[2]
-
-            return test
+            return self._get_request_detail(request)
 
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
-            print "Remote '%s/%s' already exists" % (self.org, name)
+            raise SkeinError("Request %s doesn't exist for %s" % (request_id, self.cfgs['github']['issue_project']))
     
     def create_remote_repo(self, name, summary=None, url=None):
         self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, name))
