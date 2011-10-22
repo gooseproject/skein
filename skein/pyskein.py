@@ -84,7 +84,7 @@ class TaskWatcher(object):
         last = self.info
         self.info = self.session.getTaskInfo(self.id, request=True)
         if self.info is None:
-            logging.error("No such task id: %i" % self.id)
+            self.logger.error("No such task id: %i" % self.id)
             print "No such task id: %i" % self.id
             sys.exit(1)
         state = self.info['state']
@@ -93,13 +93,13 @@ class TaskWatcher(object):
             laststate = last['state']
             if laststate != state:
                 msg = "%s: %s -> %s" % (self.str(), self.display_state(last), self.display_state(self.info))
-                logging.info(msg)
+                self.logger.info(msg)
                 print msg
                 return True
             return False
         else:
             # First time we're seeing this task, so just show the current state
-            logging.info("%s: %s" % (self.str(), self.display_state(self.info)))
+            self.logger.info("%s: %s" % (self.str(), self.display_state(self.info)))
             print "%s: %s" % (self.str(), self.display_state(self.info))
             return False
 
@@ -176,7 +176,7 @@ class PySkein:
     def _init_koji(self, user=None, kojiconfig=None, url=None):
         """Initiate a koji session.  Available options are:
 
-        user: User to log into koji as (if no user, no login)
+        user: User to log nto koji as (if no user, no login)
 
         kojiconfig: Use an alternate koji config file
 
@@ -215,20 +215,20 @@ class PySkein:
         session_opts = {'user': user}
         # We assign the kojisession to our self as it can be used later to
         # watch the tasks.
-        logging.debug('Initiating a koji session to %s' % defaults['server'])
+        self.logger.debug('Initiating a koji session to %s' % defaults['server'])
         try:
             if user:
                 self.kojisession = koji.ClientSession(defaults['server'],
                                                       session_opts)
 
-                logging.debug('Logged into a koji session to %s as %s' % (defaults['server'], user ))
+                self.logger.debug('Logged into a koji session to %s as %s' % (defaults['server'], user ))
             else:
                 self.kojisession = koji.ClientSession(defaults['server'])
         except:
             raise SkeinError('Could not initiate koji session')
         # save the weburl for later use too
         self.kojiweburl = defaults['weburl']
-        logging.debug('Kojiweb URL: %s' % self.kojiweburl)
+        self.logger.debug('Kojiweb URL: %s' % self.kojiweburl)
         # log in using ssl
         if user:
             try:
@@ -243,7 +243,7 @@ class PySkein:
     # grab the details from the rpm and add them to the object
     def _set_srpm_details(self, srpm):
 
-        logging.info("== Querying srpm ==")
+        self.logger.info("== Querying srpm ==")
         ts = rpm.ts()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
     
@@ -255,25 +255,25 @@ class PySkein:
                 print str(e)
         fdno.close()
         
-        logging.info("  Setting srpm name ==")
+        self.logger.info("  Setting srpm name ==")
         self.name = hdr[rpm.RPMTAG_NAME]
-        logging.info("  Setting srpm version ==")
+        self.logger.info("  Setting srpm version ==")
         self.version = hdr[rpm.RPMTAG_VERSION]
-        logging.info("  Setting srpm release ==")
+        self.logger.info("  Setting srpm release ==")
         self.release = hdr[rpm.RPMTAG_RELEASE]
-        logging.info("  Setting srpm sources ==")
+        self.logger.info("  Setting srpm sources ==")
         self.sources = hdr[rpm.RPMTAG_SOURCE]
-        logging.info("  Setting srpm patches ==")
+        self.logger.info("  Setting srpm patches ==")
 #        print "rpm patches: %s" % hdr[rpm.RPMTAG_PATCH]
         self.patches = []
         for patch in hdr[rpm.RPMTAG_PATCH]:
             self.patches.append(patch.replace('%{name}', self.name))
 #        self.patches = hdr[rpm.RPMTAG_PATCH].replace('%{name}', self.name)
-        logging.info("  Setting srpm summary ==")
+        self.logger.info("  Setting srpm summary ==")
         self.summary = hdr[rpm.RPMTAG_SUMMARY]
-        logging.info("  Setting srpm url ==")
+        self.logger.info("  Setting srpm url ==")
         self.url = hdr[rpm.RPMTAG_URL]
-        logging.info("  Setting srpm requires ==")
+        self.logger.info("  Setting srpm requires ==")
         # note to self, the [:-2] strips off the rpmlib(FileDigests)' and 
         #'rpmlib(CompressedFileNames)' which are provided by the 'rpm' rpm
         self.buildrequires = hdr[rpm.RPMTAG_REQUIRES]
@@ -281,25 +281,25 @@ class PySkein:
     # install the srpm in a temporary directory
     def _install_srpm(self, srpm):
         # rpm.ts is an alias for rpm.TransactionSet
-        logging.info("== Installing srpm ==")
+        self.logger.info("== Installing srpm ==")
     
         self._makedir(u"%s/%s" % (sks.install_root, self.name))
     
-        logging.info("  installing %s into %s/%s" % (srpm, sks.install_root, self.name))
+        self.logger.info("  installing %s into %s/%s" % (srpm, sks.install_root, self.name))
         args = ["/bin/rpm", "-i", "--root=%s/%s" % (sks.install_root, self.name), "%s" % (srpm)]
         p = subprocess.call(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE )
 
     def _copy_sources(self, sources_src, sources_dest):
-        logging.info("== Copying sources ==")
+        self.logger.info("== Copying sources ==")
         # copy the source files
         for source in self.sources:
         #    print "source: %s/%s" % (sources_src, source)
-            logging.info("  %s to %s" % (source, sources_dest))
+            self.logger.info("  %s to %s" % (source, sources_dest))
             shutil.copy2("%s/%s" % (sources_src, source), sources_dest)
     
     # this method assumes the sources are new and overwrites the 'sources' file in the git repository
     def _generate_sha256(self, sources_dest, spec_dest):
-        logging.info("== Generating sha256sum for sources ==")
+        self.logger.info("== Generating sha256sum for sources ==")
         sfile = open(u"%s/sources" % spec_dest, 'w+')
         for source in self.sources:
             sha256sum = hashlib.sha256(open(u"%s/%s" % (sources_dest, source), 'rb').read()).hexdigest()
@@ -307,27 +307,27 @@ class PySkein:
         #close the file
         sfile.close()
 
-        logging.info("  sha256sums generated and added to %s/sources" % spec_dest)
+        self.logger.info("  sha256sums generated and added to %s/sources" % spec_dest)
 
     def _copy_spec(self, spec_src, spec_dest):
-        logging.info("== Copying spec ==")
+        self.logger.info("== Copying spec ==")
 
         # copy the spec file
-        logging.info("  %s.spec to %s" % (self.name, spec_dest))
+        self.logger.info("  %s.spec to %s" % (self.name, spec_dest))
         shutil.copy2(spec_src, spec_dest)
 
     def _copy_patches(self, patches_src, patches_dest):
-        logging.info("== Copying patches ==")
+        self.logger.info("== Copying patches ==")
         # copy the patch files
         #print "patches: %s" % self.patches
         for patch in self.patches:
-            logging.info("  %s to %s" % (patch, patches_dest))
+            self.logger.info("  %s to %s" % (patch, patches_dest))
             shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
 
 
     # create a git repository pointing to appropriate github repo
     def _clone_git_repo(self, repo_dir, scm_url):
-        logging.info("== Creating local git repository at '%s' ==" % repo_dir)
+        self.logger.info("== Creating local git repository at '%s' ==" % repo_dir)
 
         try:
             self.repo = git.Repo(repo_dir)
@@ -337,18 +337,18 @@ class PySkein:
             result = git.Git.execute(gitrepo, cmd)
             self.repo = git.Repo(repo_dir)
 
-        logging.info("  Performing git pull from origin at '%s'" % scm_url)
+        self.logger.info("  Performing git pull from origin at '%s'" % scm_url)
 
         try:
             self.repo.create_remote('origin', scm_url)
             self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
         except (AssertionError, GitCommandError), e:
-            logging.debug("--- Exception thrown %s" % e)
+            self.logger.debug("--- Exception thrown %s" % e)
             origin = self.repo.remotes['origin']
             reader = origin.config_reader
             url = reader.get("url")
             if not url == scm_url:
-                logging.info(u"  origin is %s, should be %s. Adjusting" % (url, scm_url))
+                self.logger.info(u"  origin is %s, should be %s. Adjusting" % (url, scm_url))
                 try:
                     self.repo.delete_remote('old_origin')
                 except GitCommandError, e:
@@ -358,7 +358,7 @@ class PySkein:
                     
     # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
     def _update_gitignore(self, path):
-        logging.info("  Updating .gitignore with sources")
+        self.logger.info("  Updating .gitignore with sources")
         gitignore_file = open("%s/%s" % (path, '.gitignore'), 'w')
         for line in self.sources:
             gitignore_file.write("%s\n" % line)
@@ -367,7 +367,7 @@ class PySkein:
     # search for a makefile.tpl in the makefile_path and use
     # it as a template to put in each package's repository
     def _do_makefile(self):
-        logging.info("  Updating Makefile")
+        self.logger.info("  Updating Makefile")
         found = False
         for path in sks.makefile_path.split(':'):
             expanded_path = "%s/%s" % (os.path.expanduser(path), sks.makefile_name)
@@ -378,7 +378,7 @@ class PySkein:
                 break
 
         if not found:
-            logging.error("'%s' not found in path '%s', please fix in the skein_settings.py" % (sks.makefile_name, sks.makefile_path))
+            self.logger.error("'%s' not found in path '%s', please fix in the skein_settings.py" % (sks.makefile_name, sks.makefile_path))
             raise IOError("'%s' not found in path '%s', please fix in the skein_settings.py" % (sks.makefile_name, sks.makefile_path))
 
 #        print "makefile template found at %s" % makefile_template
@@ -391,7 +391,7 @@ class PySkein:
 
     def _upload_sources(self, sources_path):
 
-        logging.info("== Uploading Sources ==")
+        self.logger.info("== Uploading Sources ==")
 #        os.chdir( sks.lookaside_dir  )
 #        print "CWD: %s" % os.getcwd()
 #        print "PKG: %s" % self.name
@@ -399,7 +399,7 @@ class PySkein:
         for source in self.sources:
 #            print "rsync -vloDtRz -e ssh %s/%s %s@%s:%s/" % (self.name, source, sks.lookaside_user, sks.lookaside_host, sks.lookaside_remote_dir)
 
-            logging.info("  uploading %s to %s" % (source, sks.lookaside_host))
+            self.logger.info("  uploading %s to %s" % (source, sks.lookaside_host))
             args = ["/usr/bin/rsync", "-loDtRz", "-e", "ssh", "%s/%s" % (self.name, source), "%s@%s:%s/" % ( sks.lookaside_user, sks.lookaside_host, sks.lookaside_remote_dir)]
             p = subprocess.call(args, cwd="%s" % (sks.lookaside_dir), stdout = subprocess.PIPE)
 #            os.waitpid(p.pid, 0)
@@ -408,13 +408,13 @@ class PySkein:
 
     def _commit_and_push(self, repo=None):
 
-        logging.info("== Committing and pushing git repo ==")
+        self.logger.info("== Committing and pushing git repo ==")
         if not repo:
             repo = self.repo
 
         index = repo.index
 
-        logging.info("  adding updated files to the index") 
+        self.logger.info("  adding updated files to the index")
         index_changed = False
         if repo.is_dirty():
            #print "index: %s" % index
@@ -424,7 +424,7 @@ class PySkein:
             index.add([diff.a_blob.path.rstrip('\n') for diff in index.diff(None)])
             index_changed = True
 
-        logging.info("  adding untracked files to the index") 
+        self.logger.info("  adding untracked files to the index") 
         # add untracked files
         path = os.path.split(sks.base_dir)[0]
         #print "path: %s" % path
@@ -434,16 +434,16 @@ class PySkein:
             index_changed = True
 
         if index_changed:
-            logging.info("  committing index") 
+            self.logger.info("  committing index") 
             # commit files added to the index
             index.commit(sks.commit_message)
 
-        logging.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote)) 
+        self.logger.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote)) 
         try:
             self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
         except IndexError, e:
             print "--- Push failed with error: %s ---" % e
-            logging.debug("--- Push failed with error: %s" % e)
+            self.logger.debug("--- Push failed with error: %s" % e)
             raise
         except AssertionError, e:
             # odds are that unless the exception 'e' has a value
@@ -451,7 +451,7 @@ class PySkein:
             # gitPython shows a warning, not an actual error
             if e and len(str(e)) != 0:
                 print "--- Push failed with error: %s ---" % e
-                logging.debug("--- Push failed with error: %s" % e)
+                self.logger.debug("--- Push failed with error: %s" % e)
                 raise 
 
     def _get_srpm_list(self, path):
@@ -467,7 +467,7 @@ class PySkein:
     def _watch_koji_tasks(self, session, tasklist, quiet=False):
         if not tasklist:
             return
-        logging.info('Watching tasks (this may be safely interrupted)...')
+        self.logger.info('Watching tasks (this may be safely interrupted)...')
         print 'Watching tasks (this may be safely interrupted)...'
         # Place holder for return value
         rv = 0
@@ -507,7 +507,7 @@ class PySkein:
         except (KeyboardInterrupt):
             if tasks:
                 kbd_msg = """\nTasks still running. You can continue to watch with the 'koji watch-task' command.  Running Tasks: %s""" % '\n'.join(['%s: %s' % (t.str(), t.display_state(t.info)) for t in tasks.values() if not t.is_done()])
-                logging.info(kbd_msg)
+                self.logger.info(kbd_msg)
                 print kbd_msg
 
             # /us/rbin/koji considers a ^c while tasks are running to be a
@@ -546,27 +546,57 @@ class PySkein:
     def show_request_by_id(self, args):
         self._init_git_remote()
 
-        name, summary, url = self.gitremote.show_request_by_id(args.id)
+        name, summary, url, owner = self.gitremote.show_request_by_id(args.id)
 
-        print "\nDetails for request # %s" % args.id
+        print "\nDetails for request # %s, requested by: %s" % (args.id, owner)
         print "-------------------------"
         print "Package Name: %s" % name
         print "Package Summary: %s" % summary
         print "Package URL: %s\n" % url
 
+    def _enable_pkg(self, name, summary, url, owner, tag=None):
+
+        if not tag:
+            tag = self.cfgs['koji']['latest_tag']
+
+        self.gitremote.create_remote_repo(name, summary, url)
+
+        try:
+            if not self.kojisession.checkTagPackage(tag, name):
+                self.kojisession.packageListAdd(tag, name, owner=owner)
+                self.logger.info("== Added package '%s' to the tag '%s'" % (name, tag))
+                print "Added package '%s' to the tag '%s'" % (name, tag)
+            else:
+                self.logger.info("== Package '%s' already added to tag '%s'" % (name, tag))
+                print "Package '%s' already added to tag '%s', skipping" % (name, tag)
+
+        except (xmlrpclib.Fault,koji.GenericError),e:
+            raise SkeinError("koji is being dumb: %s" % e)
+
     def grant_request(self, args):
+
         self._init_git_remote()
 
-        kojiconfig = None
-        if args.config:
-            kojiconfig = args.config
+        tag = None
+        if args.tag:
+            tag = args.tag
 
-#        self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
+        name, summary, url, owner = self.gitremote.show_request_by_id(args.id)
 
-        name, summary, url = self.gitremote.get_request_by_id(args.id)
+        if args.owner:
+            owner = args.owner
 
         print "Name: %s\nSummary: %s\nURL: %s\n" % (name, summary, url)
-#        self.gitremote.create_remote_repo(args.id)
+        valid = 'n'
+        valid = raw_input("Is the above information correct? (y/N) ")
+
+        if valid.lower() == 'y':
+            kojiconfig = None
+            if args.config:
+                kojiconfig = args.config
+
+            self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
+            self._enable_pkg(name, summary, url, owner, tag)
 
     def do_build_pkg(self, args):
 
@@ -614,9 +644,9 @@ class PySkein:
         for srpm in srpms:
             self._set_srpm_details(u"%s" % (srpm))
             print "== Deps for %s ==" % (srpm)
-            logging.info("== Getting deps for %s==" % (srpm))
+            self.logger.info("== Getting deps for %s==" % (srpm))
             for br in self.buildrequires:
-                logging.info("  %s" % br)
+                self.logger.info("  %s" % br)
                 print "  %s" % br
             print ""
 
@@ -630,7 +660,7 @@ class PySkein:
         
             for srpm in srpms:
                 print "Importing %s" % (srpm)
-                logging.info("== Importing %s==" % (srpm))
+                self.logger.info("== Importing %s==" % (srpm))
                 self._set_srpm_details(u"%s" % (srpm))
                 self._install_srpm(u"%s" % (srpm))
     
@@ -668,7 +698,7 @@ class PySkein:
                     self._commit_and_push()
     
                 print "Import %s complete\n" % (self.name)
-                logging.info("== Import of '%s' complete ==\n" % (srpm))
+                self.logger.info("== Import of '%s' complete ==\n" % (srpm))
 
 def main():
 

@@ -25,5 +25,5 @@ class GitRemote():
     def show_request_by_id(self, request_id):
         return self.remote.show_request_by_id(request_id)
 
-    def create_remote_repo(self):
+    def create_remote_repo(self, name, summary, url):
         return self.remote.create_remote_repo(name, summary, url)

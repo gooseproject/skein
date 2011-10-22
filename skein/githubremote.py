@@ -123,6 +123,8 @@ class GithubRemote(GitRemote):
             if l.lower().startswith("url:") or l.lower().startswith("upstream url:"):
                 details.append(l[l.find(":")+1:].strip())
 
+        details.append(request.user)
+
         return details
 
     def show_request_by_id(self, request_id):
@@ -137,18 +139,26 @@ class GithubRemote(GitRemote):
             self.logger.debug("  github error: %s" %e)
             raise SkeinError("Request %s doesn't exist for %s" % (request_id, self.cfgs['github']['issue_project']))
     
-    def create_remote_repo(self, name, summary=None, url=None):
+    def create_remote_repo(self, name, summary, url):
         self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, name))
+
         try:
             github = self._login()
             repo = github.repos.create(u"%s/%s" % (self.org, name), summary, url)
-            for team in self.cfgs['github']['repo_teams']:
-                github.teams.add_project(team, u"%s/%s" % (self.org, name))
-
-            self.logger.info("  Remote '%s/%s' created" % (self.org, repo.name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
             self.logger.info("  Remote '%s/%s' already exists" % (self.org, name))
-            print "Remote '%s/%s' already exists" % (self.org, name)
+            print "Remote repo '%s/%s' already exists, skipping" % (self.org, name)
+
+        try:
+            for team in self.cfgs['github']['repo_teams'].split(","):
+                github.teams.add_project(team.strip(), u"%s/%s" % (self.org, name))
+
+        except RuntimeError, e:
+            # assume repo already exists if this is thrown
+            self.logger.debug("  couldn't add teams: %s" %e)
+            print "Couldn't add teams to '%s/%s'" % (self.org, name)
+
+        self.logger.info("  Remote '%s/%s' created" % (self.org, name))
 

@@ -44,18 +44,20 @@ def main():
     p_request.add_argument("-r", "--reason", metavar="reason", help="Include reason with request")
     p_request.set_defaults(func=ps.request_remote_repo)
 
-    p_grant = sp.add_parser("grant", help=u"create new upstream repo and add package to koji")
-    p_grant.add_argument("id", help=u"id of new repo request being created")
-    p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
-    p_grant.set_defaults(func=ps.grant_request)
-
     p_query = sp.add_parser("query", help=u"query upstream repo requests")
     p_query.add_argument("-s", "--state", metavar="state", help="'open' (default) or 'closed'")
     p_query.set_defaults(func=ps.search_repo_requests)
 
-    p_query = sp.add_parser("show", help=u"show detail of a particular request")
-    p_query.add_argument("id", help="request id from ticket tracker")
-    p_query.set_defaults(func=ps.show_request_by_id)
+    p_show = sp.add_parser("show", help=u"show detail of a particular request")
+    p_show.add_argument("id", help="request id from ticket tracker")
+    p_show.set_defaults(func=ps.show_request_by_id)
+
+    p_grant = sp.add_parser("grant", help=u"create new upstream repo and add package to koji")
+    p_grant.add_argument("id", help=u"id of new repo request being created")
+    p_grant.add_argument("-t", "--tag", metavar="tag", help=u"add to a specific tag in koji, otherwise the package will be added to the latest tag")
+    p_grant.add_argument("-o", "--owner", metavar="owner", help=u"override the owner of this package")
+    p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
+    p_grant.set_defaults(func=ps.grant_request)
 
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")
