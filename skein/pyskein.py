@@ -434,11 +434,11 @@ class PySkein:
             index_changed = True
 
         if index_changed:
-            self.logger.info("  committing index") 
+            self.logger.info("  committing index")
             # commit files added to the index
             index.commit(sks.commit_message)
 
-        self.logger.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote)) 
+        self.logger.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote))
         try:
             self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
         except IndexError, e:
@@ -560,6 +560,7 @@ class PySkein:
             tag = self.cfgs['koji']['latest_tag']
 
         self.gitremote.create_remote_repo(name, summary, url)
+        self.gitremote.create_team("%s_%s" % (self.cfgs['skein']['team_prefix'], name), 'admin', [name])
 
         try:
             if not self.kojisession.checkTagPackage(tag, name):
@@ -571,7 +572,12 @@ class PySkein:
                 print "Package '%s' already added to tag '%s', skipping" % (name, tag)
 
         except (xmlrpclib.Fault,koji.GenericError),e:
-            raise SkeinError("koji is being dumb: %s" % e)
+            raise SkeinError("Unable to tag package %s due to error: %s" % (name, e))
+
+#    def create_team(self, args):
+#
+#        self._init_git_remote()
+#        self.gitremote.create_team('testTeamA', 'admin', ['gooselinux/wavpack'])
 
     def grant_request(self, args):
 
@@ -710,7 +716,9 @@ def main():
         )
 
 
-    p.set_defaults(func=ps.request_remote_repo)
+
+#    p.add_argument("name", help=u"id of new repo request being created")
+    p.set_defaults(func=ps.create_team)
 
     args = p.parse_args()
     args.func(args)

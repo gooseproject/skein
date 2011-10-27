@@ -27,3 +27,6 @@ class GitRemote():
 
     def create_remote_repo(self, name, summary, url):
         return self.remote.create_remote_repo(name, summary, url)
+
+    def create_team(self, name, permission, repos):
+        return self.remote.create_team(name, permission, repos)

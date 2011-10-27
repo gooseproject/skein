@@ -162,3 +162,16 @@ class GithubRemote(GitRemote):
 
         self.logger.info("  Remote '%s/%s' created" % (self.org, name))
 
+    def create_team(self, name, permission, repos):
+
+        try:
+            github = self._login()
+            value = github.organizations.add_team(self.org, name, permission, repos)
+            team = value['team']
+        except RuntimeError, e:
+            # assume team already exists if this is thrown
+            self.logger.debug("  github error: %s" %e)
+            self.logger.info("  Team '%s' already exists" % name)
+            print "Team '%s' already exists, skipping" % name
+
+        self.logger.info("  Team '%s' created with id: '%s'" % (team['name'], team['id']))
