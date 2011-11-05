@@ -20,7 +20,7 @@ import xmlrpclib
 
 # GitPython
 import git
-from git.errors import InvalidGitRepositoryError, NoSuchPathError, GitCommandError
+from git import InvalidGitRepositoryError, NoSuchPathError, GitCommandError
 
 # settings, including lookaside uri and temporary paths
 import skein_settings as sks
@@ -238,7 +238,8 @@ class PySkein:
                 raise SkeinError('Opening a SSL connection failed')
             if not self.kojisession.logged_in:
                 raise SkeinError('Could not auth with koji as %s' % user)
-        return
+        return self.kojisession
+
 
     # grab the details from the rpm and add them to the object
     def _set_srpm_details(self, srpm):
@@ -571,13 +572,9 @@ class PySkein:
                 self.logger.info("== Package '%s' already added to tag '%s'" % (name, tag))
                 print "Package '%s' already added to tag '%s', skipping" % (name, tag)
 
-        except (xmlrpclib.Fault,koji.GenericError),e:
+        except (xmlrpclib.Fault,koji.GenericError) as e:
             raise SkeinError("Unable to tag package %s due to error: %s" % (name, e))
 
-#    def create_team(self, args):
-#
-#        self._init_git_remote()
-#        self.gitremote.create_team('testTeamA', 'admin', ['gooselinux/wavpack'])
 
     def grant_request(self, args):
 
@@ -603,6 +600,8 @@ class PySkein:
 
             self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
             self._enable_pkg(name, summary, url, owner, tag)
+            self.gitremote.close_repo_request(name, summary, url)
+
 
     def do_build_pkg(self, args):
 

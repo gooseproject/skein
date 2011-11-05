@@ -3,10 +3,6 @@ import sys
 import re
 import time
 
-# GitPython
-import git
-from git.errors import InvalidGitRepositoryError, NoSuchPathError, GitCommandError
-
 class GitRemote():
 
     def __init__(self, remote_class, cfgs, logger):
@@ -30,3 +26,6 @@ class GitRemote():
 
     def create_team(self, name, permission, repos):
         return self.remote.create_team(name, permission, repos)
+
+    def close_repo_request(self, request_id, comment):
+        return self.remote.close_repo_request(request_id, comment)

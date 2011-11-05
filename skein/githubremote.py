@@ -7,7 +7,7 @@ import subprocess
 
 # GitPython
 import git
-from git.errors import InvalidGitRepositoryError, NoSuchPathError, GitCommandError
+from git import InvalidGitRepositoryError, NoSuchPathError, GitCommandError
 
 # settings, including lookaside uri and temporary paths
 import skein_settings as sks
@@ -27,6 +27,7 @@ class GithubRemote(GitRemote):
         self.logger = logger
         self.cfgs = cfgs
         self.org = self.cfgs['github']['org']
+        self.github = self._login()
 
     def __str__(self):
         return self.name
@@ -67,17 +68,16 @@ class GithubRemote(GitRemote):
                 raise SkeinError("Action cancelled by user.")
 
         try:
-            github = self._login()
 
-            for i in github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
+            for i in self.github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
                 if i.title.lower().find(pkg) != -1:
                     print "Possible conflict with package: '%s'" % i.title
                     print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
                     raise SkeinError("Please file this request at %s/%s/%s if you are sure this is not a conflict."
                             % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'] ))
 
-            req = github.issues.open(u"%s" % self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % pkg, reason)
-            github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), req.number, self.cfgs['github']['new_repo_issue_label'])
+            req = self.github.issues.open(u"%s" % self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % pkg, reason)
+            self.github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), req.number, self.cfgs['github']['new_repo_issue_label'])
 
             if req:
                 print "Issue %d created for new repo: %s." % (req.number, pkg)
@@ -93,8 +93,7 @@ class GithubRemote(GitRemote):
 
         newrepo = []
         try:
-            github = self._login()
-            issues = github.issues.list(self.cfgs['github']['issue_project'], state=state)
+            issues = self.github.issues.list(self.cfgs['github']['issue_project'], state=state)
 
             [newrepo.append(i) for i in issues if 'new repo' in i.labels]
             self.logger.info("  Grabbed %d new repo requests" % (len(newrepo)))
@@ -129,8 +128,7 @@ class GithubRemote(GitRemote):
 
     def show_request_by_id(self, request_id):
         try:
-            github = self._login()
-            request = github.issues.show(self.cfgs['github']['issue_project'], request_id)
+            request = self.github.issues.show(self.cfgs['github']['issue_project'], request_id)
 
             return self._get_request_detail(request)
 
@@ -143,9 +141,8 @@ class GithubRemote(GitRemote):
         self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, name))
 
         try:
-            github = self._login()
-            repo = github.repos.create(u"%s/%s" % (self.org, name), summary, url)
-        except RuntimeError, e:
+            repo = self.github.repos.create(u"%s/%s" % (self.org, name), summary, url)
+        except (KeyError, RuntimeError) as e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
             self.logger.info("  Remote '%s/%s' already exists" % (self.org, name))
@@ -153,7 +150,7 @@ class GithubRemote(GitRemote):
 
         try:
             for team in self.cfgs['github']['repo_teams'].split(","):
-                github.teams.add_project(team.strip(), u"%s/%s" % (self.org, name))
+                self.github.teams.add_project(team.strip(), u"%s/%s" % (self.org, name))
 
         except RuntimeError, e:
             # assume repo already exists if this is thrown
@@ -165,13 +162,22 @@ class GithubRemote(GitRemote):
     def create_team(self, name, permission, repos):
 
         try:
-            github = self._login()
-            value = github.organizations.add_team(self.org, name, permission, repos)
+            value = self.github.organizations.add_team(self.org, name, permission, repos)
             team = value['team']
-        except RuntimeError, e:
+            self.logger.info("  Team '%s' created with id: '%s'" % (team['name'], team['id']))
+        except (KeyError, RuntimeError) as e:
             # assume team already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
             self.logger.info("  Team '%s' already exists" % name)
             print "Team '%s' already exists, skipping" % name
 
-        self.logger.info("  Team '%s' created with id: '%s'" % (team['name'], team['id']))
+    def close_repo_request(self, request_id, name):
+
+        try:
+            self.github.issues.comment(self.cfgs['github']['issue_project'], request_id, self.cfgs['github']['closing_comment_text'] % name)
+            self.github.issues.close(self.cfgs['github']['issue_project'], request_id)
+        except (KeyError, RuntimeError) as e:
+            self.logger.debug("  github error: %s" %e)
+            print "Ticket id '%s' could not be closed automatically, please close by hand" % request_id
+
+
