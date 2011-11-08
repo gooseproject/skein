@@ -600,7 +600,7 @@ class PySkein:
 
             self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
             self._enable_pkg(name, summary, url, owner, tag)
-            self.gitremote.close_repo_request(name, summary, url)
+            self.gitremote.close_repo_request(args.id, name)
 
 
     def do_build_pkg(self, args):
