@@ -171,6 +171,9 @@ class GithubRemote(GitRemote):
             self.logger.info("  Team '%s' already exists" % name)
             print "Team '%s' already exists, skipping" % name
 
+    def request_is_open(self, request_id):
+        return self.github.issues.show(self.cfgs['github']['issue_project'], request_id).state == 'open'
+
     def close_repo_request(self, request_id, name):
 
         try:
