@@ -9,6 +9,7 @@ import shutil
 import hashlib
 import logging
 import argparse
+import subprocess
 import ConfigParser
 
 # import the rpm parsing stuff
@@ -240,7 +241,6 @@ class PySkein:
                 raise SkeinError('Could not auth with koji as %s' % user)
         return self.kojisession
 
-
     # grab the details from the rpm and add them to the object
     def _set_srpm_details(self, srpm):
 
@@ -256,38 +256,39 @@ class PySkein:
                 print str(e)
         fdno.close()
         
+        self.rpminfo = {}
         self.logger.info("  Setting srpm name ==")
-        self.name = hdr[rpm.RPMTAG_NAME]
+        self.rpminfo['name'] = hdr[rpm.RPMTAG_NAME]
         self.logger.info("  Setting srpm version ==")
-        self.version = hdr[rpm.RPMTAG_VERSION]
+        self.rpminfo['version'] = hdr[rpm.RPMTAG_VERSION]
         self.logger.info("  Setting srpm release ==")
-        self.release = hdr[rpm.RPMTAG_RELEASE]
+        self.rpminfo['release'] = hdr[rpm.RPMTAG_RELEASE]
         self.logger.info("  Setting srpm sources ==")
-        self.sources = hdr[rpm.RPMTAG_SOURCE]
+        self.rpminfo['sources'] = hdr[rpm.RPMTAG_SOURCE]
         self.logger.info("  Setting srpm patches ==")
-#        print "rpm patches: %s" % hdr[rpm.RPMTAG_PATCH]
-        self.patches = []
+        patches = []
         for patch in hdr[rpm.RPMTAG_PATCH]:
-            self.patches.append(patch.replace('%{name}', self.name))
+            patches.append(patch.replace('%{name}', self.rpminfo['name']))
+        self.rpminfo['patches'] = patches
 #        self.patches = hdr[rpm.RPMTAG_PATCH].replace('%{name}', self.name)
         self.logger.info("  Setting srpm summary ==")
-        self.summary = hdr[rpm.RPMTAG_SUMMARY]
+        self.rpminfo['summary'] = hdr[rpm.RPMTAG_SUMMARY]
         self.logger.info("  Setting srpm url ==")
-        self.url = hdr[rpm.RPMTAG_URL]
+        self.rpminfo['url'] = hdr[rpm.RPMTAG_URL]
         self.logger.info("  Setting srpm requires ==")
         # note to self, the [:-2] strips off the rpmlib(FileDigests)' and 
         #'rpmlib(CompressedFileNames)' which are provided by the 'rpm' rpm
-        self.buildrequires = hdr[rpm.RPMTAG_REQUIRES]
+        self.rpminfo['buildrequires'] = hdr[rpm.RPMTAG_REQUIRES]
 
     # install the srpm in a temporary directory
     def _install_srpm(self, srpm):
         # rpm.ts is an alias for rpm.TransactionSet
         self.logger.info("== Installing srpm ==")
     
-        self._makedir(u"%s/%s" % (sks.install_root, self.name))
+        self._makedir(u"%s/%s" % (sks.install_root, self.rpminfo['name']))
     
-        self.logger.info("  installing %s into %s/%s" % (srpm, sks.install_root, self.name))
-        args = ["/bin/rpm", "-i", "--root=%s/%s" % (sks.install_root, self.name), "%s" % (srpm)]
+        self.logger.info("  installing %s into %s/%s" % (srpm, sks.install_root, self.rpminfo['name']))
+        args = ["/bin/rpm", "-i", "--root=%s/%s" % (sks.install_root, self.rpminfo['name']), "%s" % (srpm)]
         p = subprocess.call(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE )
 
     def _copy_sources(self, sources_src, sources_dest):
@@ -575,7 +576,6 @@ class PySkein:
         except (xmlrpclib.Fault,koji.GenericError) as e:
             raise SkeinError("Unable to tag package %s due to error: %s" % (name, e))
 
-
     def grant_request(self, args):
 
         self._init_git_remote()
@@ -585,6 +585,9 @@ class PySkein:
             tag = args.tag
 
         name, summary, url, owner = self.gitremote.show_request_by_id(args.id)
+
+        if not self.gitremote.request_is_open(args.id):
+            raise SkeinError("Request for '%s' is already completed...\n     Move along, nothing to see here!" % name)
 
         if args.owner:
             owner = args.owner
@@ -602,6 +605,34 @@ class PySkein:
             self._enable_pkg(name, summary, url, owner, tag)
             self.gitremote.close_repo_request(args.id, name)
 
+    def do_extract_pkg(self, args):
+
+        for p in args.path:
+            srpms = self._get_srpm_list(p)
+
+            for srpm in srpms:
+                self.logger.info("== Extracting %s ==" % (srpm))
+                self._set_srpm_details(u"%s" % (srpm))
+                self._install_srpm(u"%s" % (srpm))
+
+#                spec_src = u"%s/%s%s/%s/%s.spec" % (self.cfgs['skein']['install_root'], self.name, sks.home, 'rpmbuild/SPECS', self.name)
+#                spec_dest = u"%s/%s" % (sks.base_dir, self.name)
+#                sources_src = u"%s/%s%s/%s" % (sks.install_root, self.name, sks.home, 'rpmbuild/SOURCES')
+#                sources_dest = u"%s/%s" % (sks.lookaside_dir, self.name)
+#
+#                self._makedir(spec_dest)
+#                self._clone_git_repo(spec_dest, u"%s/%s.git" %(sks.git_remote, self.name))
+#
+#                self._copy_spec(spec_src, spec_dest)
+#                self._copy_patches(sources_src, spec_dest)
+#
+#                self._makedir(sources_dest)
+#                self._copy_sources(sources_src, sources_dest)
+#                self._generate_sha256(sources_dest, spec_dest)
+#
+#                self._update_gitignore(spec_dest)
+#
+#                self._do_makefile()
 
     def do_build_pkg(self, args):
 
@@ -678,32 +709,32 @@ class PySkein:
                 sources_src = u"%s/%s%s/%s" % (sks.install_root, self.name, sks.home, 'rpmbuild/SOURCES')
                 sources_dest = u"%s/%s" % (sks.lookaside_dir, self.name)
     
-    #            print "spec_src: %s" % spec_src
-    #            print "spec_dest: %s" % spec_dest
-    #            print "sources_src: %s" % sources_src
-    #            print "sources_dest: %s" % sources_dest
-    
-                self._makedir(spec_dest)
-                self._clone_git_repo(spec_dest, u"%s/%s.git" %(sks.git_remote, self.name))
-    
-                self._copy_spec(spec_src, spec_dest)
-                self._copy_patches(sources_src, spec_dest)
-    
-                self._makedir(sources_dest)
-                self._copy_sources(sources_src, sources_dest)
-                self._generate_sha256(sources_dest, spec_dest)
-    
-                self._update_gitignore(spec_dest)
-    
-                self._do_makefile()
-                if not args.no_upload:
-                    self._upload_sources(sources_dest)
-    
-                if not args.no_push:
-                    self._commit_and_push()
-    
-                print "Import %s complete\n" % (self.name)
-                self.logger.info("== Import of '%s' complete ==\n" % (srpm))
+#    #            print "spec_src: %s" % spec_src
+#    #            print "spec_dest: %s" % spec_dest
+#    #            print "sources_src: %s" % sources_src
+#    #            print "sources_dest: %s" % sources_dest
+#
+#                self._makedir(spec_dest)
+#                self._clone_git_repo(spec_dest, u"%s/%s.git" %(sks.git_remote, self.name))
+#
+#                self._copy_spec(spec_src, spec_dest)
+#                self._copy_patches(sources_src, spec_dest)
+#
+#                self._makedir(sources_dest)
+#                self._copy_sources(sources_src, sources_dest)
+#                self._generate_sha256(sources_dest, spec_dest)
+#
+#                self._update_gitignore(spec_dest)
+#
+#                self._do_makefile()
+#                if not args.no_upload:
+#                    self._upload_sources(sources_dest)
+#
+#                if not args.no_push:
+#                    self._commit_and_push()
+#
+#                print "Import %s complete\n" % (self.name)
+#                self.logger.info("== Import of '%s' complete ==\n" % (srpm))
 
 def main():
 
@@ -716,8 +747,8 @@ def main():
 
 
 
-#    p.add_argument("name", help=u"id of new repo request being created")
-    p.set_defaults(func=ps.create_team)
+    p.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
+    p.set_defaults(func=ps.do_extract_pkg)
 
     args = p.parse_args()
     args.func(args)
