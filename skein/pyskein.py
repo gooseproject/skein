@@ -1,9 +1,9 @@
 # Main class for pycamps
 
 import os
-import stat
-import sys
 import re
+import sys
+import stat
 import time
 import shutil
 import hashlib
@@ -556,7 +556,7 @@ class PySkein:
         print "Package Summary: %s" % summary
         print "Package URL: %s\n" % url
 
-    def _enable_pkg(self, name, summary, url, owner, tag=None):
+    def _enable_pkg(self, name, summary, url, owner=None, tag=None):
 
         if not tag:
             tag = self.cfgs['koji']['latest_tag']
@@ -586,11 +586,15 @@ class PySkein:
 
         name, summary, url, owner = self.gitremote.show_request_by_id(args.id)
 
-        if not self.gitremote.request_is_open(args.id):
-            raise SkeinError("Request for '%s' is already completed...\n     Move along, nothing to see here!" % name)
-
+        try:
+            owner = self.cfgs['koji']['owner']
+        except:
+            pass
         if args.owner:
             owner = args.owner
+
+        if not self.gitremote.request_is_open(args.id):
+            raise SkeinError("Request for '%s' is already completed...\n     Move along, nothing to see here!" % name)
 
         print "Name: %s\nSummary: %s\nURL: %s\n" % (name, summary, url)
         valid = 'n'
