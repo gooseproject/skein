@@ -285,19 +285,40 @@ class PySkein:
         # rpm.ts is an alias for rpm.TransactionSet
         self.logger.info("== Installing srpm ==")
     
-        self._makedir(u"%s/%s" % (sks.install_root, self.rpminfo['name']))
+        self._makedir(u"%s/%s" % (self.cfgs['skein']['install_root'], self.rpminfo['name']))
     
-        self.logger.info("  installing %s into %s/%s" % (srpm, sks.install_root, self.rpminfo['name']))
-        args = ["/bin/rpm", "-i", "--root=%s/%s" % (sks.install_root, self.rpminfo['name']), "%s" % (srpm)]
+        self.logger.info("  installing %s into %s/%s" % (srpm, self.cfgs['skein']['install_root'], self.rpminfo['name']))
+        args = ["/bin/rpm", "-i", "--root=%s/%s" % (self.cfgs['skein']['install_root'], self.rpminfo['name']), srpm]
         p = subprocess.call(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE )
 
-    def _copy_sources(self, sources_src, sources_dest):
+    def _extract_srpm(self, sources_dest, git_dest):
         self.logger.info("== Copying sources ==")
+
+        sources_path = "%s/%s%s/rpmbuild/SOURCES" % (self.cfgs['skein']['install_root'], self.rpminfo['name'], self.cfgs['skein']['home'])
+        spec_path = "%s/%s%s/rpmbuild/SPECS/%s.spec" % (self.cfgs['skein']['install_root'], self.rpminfo['name'],
+                self.cfgs['skein']['home'], self.rpminfo['name'])
+
+        source_exts = self.cfgs['skein']['source_exts'].split(',')
+
+        # copy the spec file
+        self.logger.info("  copying '%s.spec' to '%s'" % (self.rpminfo['name'], git_dest))
+        shutil.copy2(spec_path, git_dest)
+
         # copy the source files
-        for source in self.sources:
-        #    print "source: %s/%s" % (sources_src, source)
-            self.logger.info("  %s to %s" % (source, sources_dest))
-            shutil.copy2("%s/%s" % (sources_src, source), sources_dest)
+        for source in self.rpminfo['sources']:
+            src = "%s/%s" % (sources_path, source)
+
+            if src.rsplit('.')[-1] in source_exts:
+                self.logger.info("  copying '%s' to '%s'" % (source, sources_dest))
+                shutil.copy2("%s/%s" % (sources_path, source), sources_dest)
+            else:
+                self.logger.info("  copying '%s' to '%s'" % (source, git_dest))
+                shutil.copy2("%s/%s" % (sources_path, source), git_dest)
+
+        # copy the patch files
+        for source in self.rpminfo['patches']:
+            self.logger.info("  copying '%s' to '%s'" % (source, git_dest))
+            shutil.copy2(spec_path, git_dest)
     
     # this method assumes the sources are new and overwrites the 'sources' file in the git repository
     def _generate_sha256(self, sources_dest, spec_dest):
@@ -327,8 +348,8 @@ class PySkein:
             shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
 
 
+    def _init_git_repo(self, repo_dir, scm_url):
     # create a git repository pointing to appropriate github repo
-    def _clone_git_repo(self, repo_dir, scm_url):
         self.logger.info("== Creating local git repository at '%s' ==" % repo_dir)
 
         try:
@@ -338,26 +359,14 @@ class PySkein:
             cmd = ['git', 'init']
             result = git.Git.execute(gitrepo, cmd)
             self.repo = git.Repo(repo_dir)
-
-        self.logger.info("  Performing git pull from origin at '%s'" % scm_url)
-
         try:
+            self.logger.info("  Setting origin to '%s'" % scm_url)
             self.repo.create_remote('origin', scm_url)
-            self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
         except (AssertionError, GitCommandError), e:
+            print "repo path '%s' already exists, skipping" % repo_dir
+            self.logger.info("repo path '%s' already exists, skipping" % repo_dir)
             self.logger.debug("--- Exception thrown %s" % e)
-            origin = self.repo.remotes['origin']
-            reader = origin.config_reader
-            url = reader.get("url")
-            if not url == scm_url:
-                self.logger.info(u"  origin is %s, should be %s. Adjusting" % (url, scm_url))
-                try:
-                    self.repo.delete_remote('old_origin')
-                except GitCommandError, e:
-                    origin.rename('old_origin')
-                    self.repo.create_remote('origin', scm_url)
-                    self.repo.remotes['origin'].pull('refs/heads/master:refs/heads/master')
-                    
+
     # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
     def _update_gitignore(self, path):
         self.logger.info("  Updating .gitignore with sources")
@@ -619,24 +628,17 @@ class PySkein:
                 self._set_srpm_details(u"%s" % (srpm))
                 self._install_srpm(u"%s" % (srpm))
 
-#                spec_src = u"%s/%s%s/%s/%s.spec" % (self.cfgs['skein']['install_root'], self.name, sks.home, 'rpmbuild/SPECS', self.name)
-#                spec_dest = u"%s/%s" % (sks.base_dir, self.name)
-#                sources_src = u"%s/%s%s/%s" % (sks.install_root, self.name, sks.home, 'rpmbuild/SOURCES')
-#                sources_dest = u"%s/%s" % (sks.lookaside_dir, self.name)
-#
-#                self._makedir(spec_dest)
-#                self._clone_git_repo(spec_dest, u"%s/%s.git" %(sks.git_remote, self.name))
-#
-#                self._copy_spec(spec_src, spec_dest)
-#                self._copy_patches(sources_src, spec_dest)
-#
-#                self._makedir(sources_dest)
-#                self._copy_sources(sources_src, sources_dest)
-#                self._generate_sha256(sources_dest, spec_dest)
-#
-#                self._update_gitignore(spec_dest)
-#
-#                self._do_makefile()
+                proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], self.rpminfo['name'])
+                print "spec_dest: %s" % proj_dir
+
+                self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']))
+                self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
+
+                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']),
+                        "%s/%s.git" % (self.cfgs['skein']['git_remote'], self.rpminfo['name']))
+
+                # copy sources, both archives and patches. Archives go to lookaside_dir, patches and other sources go to git_dir
+                self._extract_srpm("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']), "%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
 
     def do_build_pkg(self, args):
 
