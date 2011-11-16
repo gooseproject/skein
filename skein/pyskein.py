@@ -565,17 +565,17 @@ class PySkein:
         print "Package Summary: %s" % summary
         print "Package URL: %s\n" % url
 
-    def _enable_pkg(self, name, summary, url, owner=None, tag=None):
+    def _enable_pkg(self, name, summary, url, gitowner=None, kojiowner=None, tag=None):
 
         if not tag:
             tag = self.cfgs['koji']['latest_tag']
 
         self.gitremote.create_remote_repo(name, summary, url)
-        self.gitremote.create_team("%s_%s" % (self.cfgs['skein']['team_prefix'], name), 'admin', [name])
+        self.gitremote.create_team("%s_%s" % (self.cfgs['skein']['team_prefix'], name), 'admin', gitowner, [name])
 
         try:
             if not self.kojisession.checkTagPackage(tag, name):
-                self.kojisession.packageListAdd(tag, name, owner=owner)
+                self.kojisession.packageListAdd(tag, name, owner=kojiowner)
                 self.logger.info("== Added package '%s' to the tag '%s'" % (name, tag))
                 print "Added package '%s' to the tag '%s'" % (name, tag)
             else:
@@ -593,14 +593,17 @@ class PySkein:
         if args.tag:
             tag = args.tag
 
-        name, summary, url, owner = self.gitremote.show_request_by_id(args.id)
+        name, summary, url, gitowner = self.gitremote.show_request_by_id(args.id)
 
         try:
-            owner = self.cfgs['koji']['owner']
+            kojiowner = self.cfgs['koji']['owner']
         except:
             pass
-        if args.owner:
-            owner = args.owner
+
+        if args.kojiowner:
+            kojiowner = args.kojiowner
+        if args.gitowner:
+            gitowner = args.gitowner
 
         if not self.gitremote.request_is_open(args.id):
             raise SkeinError("Request for '%s' is already completed...\n     Move along, nothing to see here!" % name)
@@ -615,7 +618,7 @@ class PySkein:
                 kojiconfig = args.config
 
             self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
-            self._enable_pkg(name, summary, url, owner, tag)
+            self._enable_pkg(name, summary, url, gitowner, kojiowner, tag)
             self.gitremote.close_repo_request(args.id, name)
 
     def do_extract_pkg(self, args):

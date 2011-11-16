@@ -24,8 +24,8 @@ class GitRemote():
     def create_remote_repo(self, name, summary, url):
         return self.remote.create_remote_repo(name, summary, url)
 
-    def create_team(self, name, permission, repos):
-        return self.remote.create_team(name, permission, repos)
+    def create_team(self, name, permission, gitowner, repos):
+        return self.remote.create_team(name, permission, gitowner, repos)
 
     def request_is_open(self, request_id):
         return self.remote.request_is_open(request_id)

@@ -42,7 +42,7 @@ class GithubRemote(GitRemote):
 
         # if the description isn't passed, open an editor for the user
         if not reason:
-            editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else sks.editor
+            editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
 
             tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
 
@@ -159,17 +159,47 @@ class GithubRemote(GitRemote):
 
         self.logger.info("  Remote '%s/%s' created" % (self.org, name))
 
-    def create_team(self, name, permission, repos):
+    def create_team(self, name, permission, githubowner, repos):
+        self.logger.info("== Creating github team '%s' ==" % name)
+
+        team = None
+        team_exists = False
+        if not githubowner:
+            githubowner = self.cfgs['github']['username']
 
         try:
             value = self.github.organizations.add_team(self.org, name, permission, repos)
             team = value['team']
             self.logger.info("  Team '%s' created with id: '%s'" % (team['name'], team['id']))
+            print "Team '%s' created with id: '%s'" % (team['name'], team['id'])
+            team_exists = True
         except (KeyError, RuntimeError) as e:
             # assume team already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
             self.logger.info("  Team '%s' already exists" % name)
             print "Team '%s' already exists, skipping" % name
+
+        if not team:
+            self.logger.info("  Checking to see if team '%s' exists" % name)
+            teams = self.github.organizations.teams(self.cfgs['github']['org'])
+            for t in teams:
+                if t['name'] == name:
+                    team = t
+                    team_exists = True
+                    break
+
+        if team_exists:
+            try:
+                self.logger.info("  Adding '%s' to '%s' " % (githubowner, name))
+                self.github.teams.add_member(team['id'], githubowner)
+                print "Added '%s' to team '%s'" % (githubowner, name)
+            except (KeyError, RuntimeError) as e:
+                # assume team already exists if this is thrown
+                self.logger.debug("  github error: %s" %e)
+                self.logger.info("  %s' is already a member of '%s', skipping" % (githubowner, team['name']))
+                print "'%s' is already a member of '%s', skipping" % (githubowner, team['name'])
+        else:
+            raise SkeinError("Team '%s' does not exists, check skein.log for more information" % name)
 
     def request_is_open(self, request_id):
         return self.github.issues.show(self.cfgs['github']['issue_project'], request_id).state == 'open'

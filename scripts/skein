@@ -52,7 +52,8 @@ def main():
     p_grant = sp.add_parser("grant", help=u"create new upstream repo and add package to koji")
     p_grant.add_argument("id", help=u"id of new repo request being created")
     p_grant.add_argument("-t", "--tag", metavar="tag", help=u"add to a specific tag in koji, otherwise the package will be added to the latest tag")
-    p_grant.add_argument("-o", "--owner", metavar="owner", help=u"override the owner of this package")
+    p_grant.add_argument("-k", "--kojiowner", metavar="kojiowner", help=u"override the owner of this package in koji")
+    p_grant.add_argument("-g", "--gitowner", metavar="gitowner", help=u"override the owner of this package in the git remote")
     p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
     p_grant.set_defaults(func=ps.grant_request)
 
