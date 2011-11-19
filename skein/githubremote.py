@@ -10,11 +10,9 @@ import git
 from git import InvalidGitRepositoryError, NoSuchPathError, GitCommandError
 
 # settings, including lookaside uri and temporary paths
-import skein_settings as sks
 from pyskein import SkeinError
 
 # github api and token should be kept secret
-#import github_settings as ghs
 from github2.client import Github
 
 from gitremote import GitRemote
@@ -36,36 +34,35 @@ class GithubRemote(GitRemote):
 
         return Github(username=self.cfgs['github']['username'], api_token=self.cfgs['github']['api_token'])
 
-    def request_remote_repo(self, pkg, reason):
+    def request_remote_repo(self, pkg):
 
         self.logger.info("== Requesting github repository for '%s/%s' ==" % (self.org, pkg))
 
-        # if the description isn't passed, open an editor for the user
-        if not reason:
-            editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
+        reason = None
+        editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
 
-            tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
+        tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
 
-            tmp_file.write(self.cfgs['github']['initial_message'])
-            tmp_file.flush()
+        tmp_file.write(self.cfgs['github']['initial_message'])
+        tmp_file.flush()
 
-            cmd = [editor, tmp_file.name]
+        cmd = [editor, tmp_file.name]
 
-            try:
-                p = subprocess.check_call(cmd)
-                f = open(tmp_file.name, 'r')
-                reason = f.read()
+        try:
+            p = subprocess.check_call(cmd)
+            f = open(tmp_file.name, 'r')
+            reason = f.read()
 
-#                print "r: %s" % reason
-#                print "i: %s" % self.cfgs['github']['initial_message']
+#            print "r: %s" % reason
+#            print "i: %s" % self.cfgs['github']['initial_message']
 
-                if not reason:
-                    raise SkeinError("Description required.")
-                elif reason == self.cfgs['github']['initial_message']:
-                    raise SkeinError("Description has not changed.")
+            if not reason:
+                raise SkeinError("Description required.")
+            elif reason == self.cfgs['github']['initial_message']:
+                raise SkeinError("Description has not changed.")
 
-            except subprocess.CalledProcessError:
-                raise SkeinError("Action cancelled by user.")
+        except subprocess.CalledProcessError:
+            raise SkeinError("Action cancelled by user.")
 
         try:
 
@@ -101,10 +98,10 @@ class GithubRemote(GitRemote):
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
 
-        print u"#\tDescription\t\t\t\tRequestor\tURL"
-        print u"-------------------------------------------------------------------"
+        print u"#\tDescription\t\t\t\t\tRequestor\tURL"
+        print u"-----------------------------------------------------------------------------"
         for r in newrepo:
-            print u"%d\t%s\t\t%s\t\t%s/%s/%s/%d" % ( r.number, r.title.ljust(25), r.user, self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], r.number)
+            print u"%d\t%s\t\t%s\t\t%s/%s/%s/%d" % ( r.number, r.title.ljust(35), r.user, self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], r.number)
         print
 
     def _get_request_detail(self, request):

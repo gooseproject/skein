@@ -27,10 +27,6 @@ def main():
 #    p_upload.add_argument('--new', action="store_true", help=u"new sources will replace old source")
 #    p_upload.set_defaults(func=ps.do_sources)
 
-    p_extract = sp.add_parser("extract", help=u"import srpm(s)")
-    p_extract.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
-    p_extract.set_defaults(func=ps.do_extract_pkg)
-
     p_deplist = sp.add_parser("deplist", help=u"return dependencies to build srpm")
     #p_import.add_argument("path", nargs='+', help=u"path to srpm. If dir given, will import all srpms")
     p_deplist.add_argument("path", help=u"path to srpm. If dir given, will import all srpms")
@@ -38,7 +34,6 @@ def main():
 
     p_request = sp.add_parser("request", help=u"request a new repo for upstream")
     p_request.add_argument("name", help=u"name of repository being requested")
-    p_request.add_argument("-r", "--reason", metavar="reason", help="Include reason with request")
     p_request.set_defaults(func=ps.request_remote_repo)
 
     p_query = sp.add_parser("query", help=u"query upstream repo requests")
@@ -56,6 +51,14 @@ def main():
     p_grant.add_argument("-g", "--gitowner", metavar="gitowner", help=u"override the owner of this package in the git remote")
     p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
     p_grant.set_defaults(func=ps.grant_request)
+
+    p_extract = sp.add_parser("extract", help=u"import srpm(s)")
+    p_extract.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
+    p_extract.set_defaults(func=ps.do_extract_pkg)
+
+    p_extract = sp.add_parser("extract", help=u"import srpm(s)")
+    p_extract.add_argument("path", nargs='+', help=u"path(s) to srpm. Will extract all srpms in given directory")
+    p_extract.set_defaults(func=ps.do_extract_pkg)
 
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")

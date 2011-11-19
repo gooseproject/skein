@@ -24,7 +24,6 @@ import git
 from git import InvalidGitRepositoryError, NoSuchPathError, GitCommandError
 
 # settings, including lookaside uri and temporary paths
-import skein_settings as sks
 from gitremote import GitRemote
 
 class SkeinError(Exception):
@@ -538,12 +537,12 @@ class PySkein:
                                       [remoteClassName])
             self.gitremote = GitRemote(remoteModule.__dict__[remoteClassName], self.cfgs, self.logger)
         except ImportError, e:
-            print "Remote class %s in module %s not found" % (remoteClassName,
-                                                              remoteModuleName)
+            self.logger.debug("Remote class %s in module %s not found" % (remoteClassName, remoteModuleName))
+            raise SkeinError("Remote class %s in module %s not found" % (remoteClassName, remoteModuleName))
 
     def request_remote_repo(self, args):
         self._init_git_remote()
-        return self.gitremote.request_remote_repo(args.name, args.reason)
+        return self.gitremote.request_remote_repo(args.name)
 
     def search_repo_requests(self, args):
         self._init_git_remote()

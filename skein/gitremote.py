@@ -12,8 +12,8 @@ class GitRemote():
     def __str__(self):
         return self.name
 
-    def request_remote_repo(self, name, reason):
-        return self.remote.request_remote_repo(name, reason)
+    def request_remote_repo(self, name):
+        return self.remote.request_remote_repo(name)
 
     def search_repo_requests(self, state='open'):
         return self.remote.search_repo_requests(state)
