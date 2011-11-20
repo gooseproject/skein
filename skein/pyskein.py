@@ -322,11 +322,16 @@ class PySkein:
     # this method assumes the sources are new and overwrites the 'sources' file in the git repository
     def _generate_sha256(self, sources_dest, spec_dest):
         self.logger.info("== Generating sha256sum for sources ==")
+
+        source_exts = self.cfgs['skein']['source_exts'].split(',')
         sfile = open(u"%s/sources" % spec_dest, 'w+')
-        for source in self.sources:
-            sha256sum = hashlib.sha256(open(u"%s/%s" % (sources_dest, source), 'rb').read()).hexdigest()
-            sfile.write(u"%s *%s\n" % (sha256sum, source))
-        #close the file
+
+        for src in self.rpminfo['sources']:
+
+            if src.rsplit('.')[-1] in source_exts:
+                sha256sum = hashlib.sha256(open("%s/%s" % (sources_dest, src), 'rb').read()).hexdigest()
+                sfile.write("%s *%s\n" % (sha256sum, src))
+
         sfile.close()
 
         self.logger.info("  sha256sums generated and added to %s/sources" % spec_dest)
@@ -640,7 +645,13 @@ class PySkein:
                         "%s/%s.git" % (self.cfgs['skein']['git_remote'], self.rpminfo['name']))
 
                 # copy sources, both archives and patches. Archives go to lookaside_dir, patches and other sources go to git_dir
-                self._extract_srpm("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']), "%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
+                src_dest = "%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir'])
+                git_dest = "%s/%s" % (proj_dir, self.cfgs['skein']['git_dir'])
+
+                self._extract_srpm(src_dest, git_dest)
+                self._generate_sha256(src_dest, git_dest)
+                self._update_gitignore(git_dest)
+                self._do_makefile(git_dest)
 
     def do_build_pkg(self, args):
 
