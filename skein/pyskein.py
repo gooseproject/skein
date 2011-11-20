@@ -386,11 +386,11 @@ class PySkein:
 
     # search for a makefile.tpl in the makefile_path and use
     # it as a template to put in each package's repository
-    def _do_makefile(self):
+    def _do_makefile(self, dest_path):
         self.logger.info("  Updating Makefile")
         found = False
-        for path in sks.makefile_path.split(':'):
-            expanded_path = "%s/%s" % (os.path.expanduser(path), sks.makefile_name)
+        for path in self.cfgs['makefile']['path'].split(':'):
+            expanded_path = "%s/%s" % (os.path.expanduser(path), self.cfgs['makefile']['name'])
 #            print "expanded_path: %s" % expanded_path
             if os.path.exists(expanded_path):
                 makefile_template = expanded_path
@@ -398,15 +398,15 @@ class PySkein:
                 break
 
         if not found:
-            self.logger.error("'%s' not found in path '%s', please fix in the skein_settings.py" % (sks.makefile_name, sks.makefile_path))
-            raise IOError("'%s' not found in path '%s', please fix in the skein_settings.py" % (sks.makefile_name, sks.makefile_path))
+            self.logger.error("'%s' not found in path '%s', please adjust skein.cfg" % (self.cfgs['makefile']['name'], self.cfgs['makefile']['path']))
+            raise SkeinError("'%s' not found in path '%s', please adjust skein.cfg" % (self.cfgs['makefile']['name'], self.cfgs['makefile']['path']))
 
 #        print "makefile template found at %s" % makefile_template
 
         src_makefile = open(makefile_template)
-        dst_makefile = open("%s/%s/Makefile" % (sks.base_dir, self.name), 'w')
+        dst_makefile = open("%s/Makefile" % dest_path, 'w')
 
-        dst_makefile.write( src_makefile.read() % {'name': self.name})
+        dst_makefile.write( src_makefile.read() % {'name': self.rpminfo['name']})
         dst_makefile.close()
 
     def _upload_sources(self, sources_path):
