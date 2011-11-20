@@ -375,8 +375,13 @@ class PySkein:
     def _update_gitignore(self, path):
         self.logger.info("  Updating .gitignore with sources")
         gitignore_file = open("%s/%s" % (path, '.gitignore'), 'w')
-        for line in self.sources:
-            gitignore_file.write("%s\n" % line)
+        source_exts = self.cfgs['skein']['source_exts'].split(',')
+        for src in self.rpminfo['sources']:
+
+            if src.rsplit('.')[-1] in source_exts:
+                self.logger.info("  writing '%s' to .gitignore" % src)
+                gitignore_file.write("%s\n" % src)
+
         gitignore_file.close()
 
     # search for a makefile.tpl in the makefile_path and use
