@@ -32,3 +32,6 @@ class GitRemote():
 
     def close_repo_request(self, request_id, name):
         return self.remote.close_repo_request(request_id, name)
+
+    def revoke_repo_request(self, request_id, name):
+        return self.remote.revoke_repo_request(request_id, name)

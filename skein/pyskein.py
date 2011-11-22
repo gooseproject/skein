@@ -585,6 +585,30 @@ class PySkein:
         except (xmlrpclib.Fault,koji.GenericError) as e:
             raise SkeinError("Unable to tag package %s due to error: %s" % (name, e))
 
+    def revoke_request(self, args):
+
+        self._init_git_remote()
+
+        name, summary, url, gitowner = self.gitremote.show_request_by_id(args.id)
+
+        try:
+            kojiowner = self.cfgs['koji']['owner']
+        except:
+            pass
+
+        if not self.gitremote.request_is_open(args.id):
+            raise SkeinError("Request for '%s' is not open...\n     Move along, nothing to see here!" % name)
+
+        print "Name: %s\nSummary: %s\nURL: %s\n" % (name, summary, url)
+        valid = 'n'
+        valid = raw_input("Is the above information correct? (y/N) ")
+
+        if valid.lower() == 'y':
+            kojiconfig = None
+
+            self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
+            self.gitremote.revoke_repo_request(args.id, name)
+
     def grant_request(self, args):
 
         self._init_git_remote()

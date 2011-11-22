@@ -57,6 +57,10 @@ def main():
     p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
     p_grant.set_defaults(func=ps.grant_request)
 
+    p_revoke = sp.add_parser("revoke", help=u"revoke a repo create request")
+    p_revoke.add_argument("id", help=u"id of repo request to be revoked")
+    p_revoke.set_defaults(func=ps.revoke_request)
+
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")
     p_build.add_argument("name", help=u"name of the package")
