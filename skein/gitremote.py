@@ -32,3 +32,6 @@ class GitRemote():
 
     def close_repo_request(self, request_id, name):
         return self.remote.close_repo_request(request_id, name)
+
+    def get_scm_url(self, name):
+        return self.remote.get_scm_url(name)

@@ -52,13 +52,14 @@ def main():
     p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
     p_grant.set_defaults(func=ps.grant_request)
 
-    p_extract = sp.add_parser("extract", help=u"import srpm(s)")
+    p_extract = sp.add_parser("extract", help=u"extract srpm(s)")
     p_extract.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
     p_extract.set_defaults(func=ps.do_extract_pkg)
 
-    p_extract = sp.add_parser("extract", help=u"import srpm(s)")
-    p_extract.add_argument("path", nargs='+', help=u"path(s) to srpm. Will extract all srpms in given directory")
-    p_extract.set_defaults(func=ps.do_extract_pkg)
+    p_push = sp.add_parser("push", help="commit and push existing git repo to remote")
+    p_push.add_argument("name", help="package/repo name to push. Expects to have existing uncommitted files.")
+    p_push.add_argument("-m", "--message", metavar="message_data", help="Commit message.")
+    p_push.set_defaults(func=ps.do_push)
 
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")

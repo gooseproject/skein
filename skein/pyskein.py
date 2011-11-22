@@ -8,6 +8,7 @@ import time
 import shutil
 import hashlib
 import logging
+import tempfile
 import argparse
 import subprocess
 import ConfigParser
@@ -352,9 +353,17 @@ class PySkein:
             shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
 
 
-    def _init_git_repo(self, repo_dir, scm_url):
-    # create a git repository pointing to appropriate github repo
+    def _init_git_repo(self, repo_dir, name):
+
+        """Create a git repository pointing to appropriate github repo
+
+        :param str repo_dir: full path to existing or potential repo
+        :param str name: name of package/repo
+        """
         self.logger.info("== Creating local git repository at '%s' ==" % repo_dir)
+
+        self._init_git_remote()
+        scm_url = self.gitremote.get_scm_url(name)
 
         try:
             self.repo = git.Repo(repo_dir)
@@ -426,17 +435,47 @@ class PySkein:
 #            print "result %s" % p.communicate()[0]
 #            time.sleep(2)
 
-    def _commit_and_push(self, repo=None):
 
-        self.logger.info("== Committing and pushing git repo ==")
-        if not repo:
-            repo = self.repo
+    def _commit(self, message=None):
+        """Commit is only called in two cases, if there are uncommitted changes
+        or if there are newly added (aka untracked) files which need to be added to
+        the local repository prior to being pushed up to the remote repository.
 
-        index = repo.index
+        """
+
+        self.logger.info("||== Committing git repo ==||")
+
+        if not message:
+
+            editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
+
+            tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
+
+            tmp_file.write(self.cfgs['git']['commit_message'])
+            tmp_file.flush()
+
+            cmd = [editor, tmp_file.name]
+
+            try:
+                p = subprocess.check_call(cmd)
+                f = open(tmp_file.name, 'r')
+                message = f.read()
+
+#                print "r: %s" % message
+#                print "i: %s" % self.cfgs['github']['initial_message']
+
+                if not message:
+                    raise SkeinError("Description required.")
+
+            except subprocess.CalledProcessError:
+                raise SkeinError("Action cancelled by user.")
+
+
+        index = self.repo.index
 
         self.logger.info("  adding updated files to the index")
         index_changed = False
-        if repo.is_dirty():
+        if self.repo.is_dirty():
            #print "index: %s" % index
 #            for diff in index.diff(None):
 #                print diff.a_blob.path
@@ -446,20 +485,32 @@ class PySkein:
 
         self.logger.info("  adding untracked files to the index") 
         # add untracked files
-        path = os.path.split(sks.base_dir)[0]
+        path = os.path.split(self.cfgs['skein']['proj_dir'])[0]
         #print "path: %s" % path
-        if repo.untracked_files:
-#            print "untracked files: %s" % repo.untracked_files
-            index.add(repo.untracked_files)
+        if self.repo.untracked_files:
+#            print "untracked files: %s" % self.repo.untracked_files
+            index.add(self.repo.untracked_files)
             index_changed = True
 
         if index_changed:
             self.logger.info("  committing index")
             # commit files added to the index
-            index.commit(sks.commit_message)
+            index.commit(message)
 
-        self.logger.info(" Pushing '%s' to '%s'" % (self.name, sks.git_remote))
+    def _push_to_remote(self, message=None):
+        """Push any/all changes to remote repository
+
+        :param str name: repository name (same as package)
+        """
+
+        self.logger.info("== Pushing git repo ==")
+
+        if self.repo.is_dirty() or self.repo.untracked_files:
+            self.logger.debug("   repo %s is a dirty girl!" % self.repo)
+            self._commit(message)
+
         try:
+            self.logger.debug("   Pushing '%s' to remote '%s'" % (self.repo, self.repo.remote()))
             self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
         except IndexError, e:
             print "--- Push failed with error: %s ---" % e
@@ -646,8 +697,7 @@ class PySkein:
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']))
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
 
-                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']),
-                        "%s/%s.git" % (self.cfgs['skein']['git_remote'], self.rpminfo['name']))
+                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
 
                 # copy sources, both archives and patches. Archives go to lookaside_dir, patches and other sources go to git_dir
                 src_dest = "%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir'])
@@ -657,6 +707,18 @@ class PySkein:
                 self._generate_sha256(src_dest, git_dest)
                 self._update_gitignore(git_dest)
                 self._do_makefile(git_dest)
+
+    def do_push(self, args):
+
+        name = args.name
+        proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
+        self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
+
+        message = None
+        if args.message:
+            message = args.message
+
+        self._push_to_remote(message)
 
     def do_build_pkg(self, args):
 

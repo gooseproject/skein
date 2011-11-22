@@ -210,4 +210,5 @@ class GithubRemote(GitRemote):
             self.logger.debug("  github error: %s" %e)
             print "Ticket id '%s' could not be closed automatically, please close by hand" % request_id
 
-
+    def get_scm_url(self, name):
+        return "%s/%s.git" % (self.cfgs['github']['remote_base'], name)
