@@ -159,12 +159,12 @@ class GithubRemote(GitRemote):
 
         self.logger.info("  Remote '%s/%s' created" % (self.org, name))
     
-    def revoke_repo_request(self, name, summary, url):
+    def revoke_repo_request(self, request_id, name):
         self.logger.info("== Revoking github repository request'%s/%s' ==" % (self.org, name))
 
         try:
-            self.github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), req.number, self.cfgs['github']['revoked_repo_issue_label'])
-            self.github.issues.remove_label(u"%s" % (self.cfgs['github']['issue_project']), req.number, self.cfgs['github']['new_repo_issue_label'])
+            self.github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), request_id, self.cfgs['github']['revoked_repo_issue_label'])
+            self.github.issues.remove_label(u"%s" % (self.cfgs['github']['issue_project']), request_id, self.cfgs['github']['new_repo_issue_label'])
             self.github.issues.comment(self.cfgs['github']['issue_project'], request_id, self.cfgs['github']['revoking_comment_text'] % name)
             self.github.issues.close(self.cfgs['github']['issue_project'], request_id)
         except (KeyError, RuntimeError) as e:
