@@ -61,6 +61,10 @@ def main():
     p_push.add_argument("-m", "--message", metavar="message_data", help="Commit message.")
     p_push.set_defaults(func=ps.do_push)
 
+    p_revoke = sp.add_parser("revoke", help=u"revoke a repo create request")
+    p_revoke.add_argument("id", help=u"id of repo request to be revoked")
+    p_revoke.set_defaults(func=ps.revoke_request)
+
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")
     p_build.add_argument("name", help=u"name of the package")

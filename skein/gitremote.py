@@ -35,3 +35,6 @@ class GitRemote():
 
     def get_scm_url(self, name):
         return self.remote.get_scm_url(name)
+
+    def revoke_repo_request(self, request_id, name):
+        return self.remote.revoke_repo_request(request_id, name)

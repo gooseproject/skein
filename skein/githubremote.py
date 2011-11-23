@@ -132,8 +132,8 @@ class GithubRemote(GitRemote):
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
-            raise SkeinError("Request %s doesn't exist for %s" % (request_id, self.cfgs['github']['issue_project']))
-    
+            raise SkeinError("Request %d doesn't exist for %s" % (request_id, self.cfgs['github']['issue_project']))
+
     def create_remote_repo(self, name, summary, url):
         self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, name))
 
@@ -155,6 +155,18 @@ class GithubRemote(GitRemote):
             print "Couldn't add teams to '%s/%s'" % (self.org, name)
 
         self.logger.info("  Remote '%s/%s' created" % (self.org, name))
+    
+    def revoke_repo_request(self, request_id, name):
+        self.logger.info("== Revoking github repository request'%s/%s' ==" % (self.org, name))
+
+        try:
+            self.github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), request_id, self.cfgs['github']['revoked_repo_issue_label'])
+            self.github.issues.remove_label(u"%s" % (self.cfgs['github']['issue_project']), request_id, self.cfgs['github']['new_repo_issue_label'])
+            self.github.issues.comment(self.cfgs['github']['issue_project'], request_id, self.cfgs['github']['revoking_comment_text'] % name)
+            self.github.issues.close(self.cfgs['github']['issue_project'], request_id)
+        except (KeyError, RuntimeError) as e:
+            self.logger.debug("  github error: %s" %e)
+            print "Ticket id '%s' could not be closed automatically, please close by hand" % request_id
 
     def create_team(self, name, permission, githubowner, repos):
         self.logger.info("== Creating github team '%s' ==" % name)
