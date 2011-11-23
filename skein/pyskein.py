@@ -139,6 +139,8 @@ class PySkein:
     """
     
     def __init__(self):
+        """Constructor for skein, will create self.cfgs and self.logger
+        """
 
         self.username = None
 
@@ -171,18 +173,21 @@ class PySkein:
         self.logger.addHandler(fh)
 
     def _makedir(self, target, perms=0775):
+        """Make a directory, possibly with specific permissions
+
+        :param str target: directory to create
+        :param int perms: mode of directory
+        """
+
         if not os.path.isdir(u"%s" % (target)):
             os.makedirs(u"%s" % (target), perms)
 
     def _init_koji(self, user=None, kojiconfig=None, url=None):
-        """Initiate a koji session.  Available options are:
+        """Initiate a koji session.  This function attempts to log in and returns nothing or raises.
 
-        user: User to log nto koji as (if no user, no login)
-
-        kojiconfig: Use an alternate koji config file
-
-        This function attempts to log in and returns nothing or raises.
-
+        :param str srpm: path to the source RPM (SRPM)
+        :param str user: User to log into koji (if no user, no login)
+        :param str kojiconfig: Use an alternate koji config file
         """
 
         # Code from /usr/bin/koji. Should be in a library!
@@ -243,6 +248,11 @@ class PySkein:
 
     # grab the details from the rpm and add them to the object
     def _set_srpm_details(self, srpm):
+        """Gather details from the SRPM
+
+        :param str srpm: path to the source RPM (SRPM)
+        """
+
 
         self.logger.info("== Querying srpm ==")
         ts = rpm.ts()
@@ -282,6 +292,11 @@ class PySkein:
 
     # install the srpm in a temporary directory
     def _install_srpm(self, srpm):
+        """Prepare SRPM to be extracted by installing in a temporary location
+
+        :param str srpm: path to srpm
+        """
+
         # rpm.ts is an alias for rpm.TransactionSet
         self.logger.info("== Installing srpm ==")
     
@@ -292,6 +307,12 @@ class PySkein:
         p = subprocess.call(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE )
 
     def _extract_srpm(self, sources_dest, git_dest):
+        """Extract files from a source rpm (SRPM)
+
+        :param str source_dest: path to specific source location, where to put the source file(s)
+        :param str git_dest: path to git repo, patch file, spec file and other non-archive sources 
+        """
+
         self.logger.info("== Copying sources ==")
 
         sources_path = "%s/%s%s/rpmbuild/SOURCES" % (self.cfgs['skein']['install_root'], self.rpminfo['name'], self.cfgs['skein']['home'])
@@ -321,11 +342,17 @@ class PySkein:
             shutil.copy2(spec_path, git_dest)
     
     # this method assumes the sources are new and overwrites the 'sources' file in the git repository
-    def _generate_sha256(self, sources_dest, spec_dest):
+    def _generate_sha256(self, sources_dest, git_dest):
+        """Generate a sha256sum for each legitimate source file
+
+        :param str source_dest: path to specific source location
+        :param str git_dest: path to git repo, sources file is placed there with sums and filenames
+        """
+
         self.logger.info("== Generating sha256sum for sources ==")
 
         source_exts = self.cfgs['skein']['source_exts'].split(',')
-        sfile = open(u"%s/sources" % spec_dest, 'w+')
+        sfile = open(u"%s/sources" % git_dest, 'w+')
 
         for src in self.rpminfo['sources']:
 
@@ -335,26 +362,9 @@ class PySkein:
 
         sfile.close()
 
-        self.logger.info("  sha256sums generated and added to %s/sources" % spec_dest)
-
-    def _copy_spec(self, spec_src, spec_dest):
-        self.logger.info("== Copying spec ==")
-
-        # copy the spec file
-        self.logger.info("  %s.spec to %s" % (self.name, spec_dest))
-        shutil.copy2(spec_src, spec_dest)
-
-    def _copy_patches(self, patches_src, patches_dest):
-        self.logger.info("== Copying patches ==")
-        # copy the patch files
-        #print "patches: %s" % self.patches
-        for patch in self.patches:
-            self.logger.info("  %s to %s" % (patch, patches_dest))
-            shutil.copy2("%s/%s" % (patches_src, patch), patches_dest)
-
+        self.logger.info("  sha256sums generated and added to %s/sources" % git_dest)
 
     def _init_git_repo(self, repo_dir, name):
-
         """Create a git repository pointing to appropriate github repo
 
         :param str repo_dir: full path to existing or potential repo
