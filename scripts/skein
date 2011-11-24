@@ -61,6 +61,10 @@ def main():
     p_push.add_argument("-m", "--message", metavar="message_data", help="Commit message.")
     p_push.set_defaults(func=ps.do_push)
 
+    p_upload = sp.add_parser("upload", help="upload source archives to lookaside")
+    p_upload.add_argument("name", help="package name to upload. Uses rsync to upload.")
+    p_upload.set_defaults(func=ps.do_upload)
+
     p_revoke = sp.add_parser("revoke", help=u"revoke a repo create request")
     p_revoke.add_argument("id", help=u"id of repo request to be revoked")
     p_revoke.set_defaults(func=ps.revoke_request)

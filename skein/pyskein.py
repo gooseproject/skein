@@ -392,6 +392,7 @@ class PySkein:
 
     # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
     def _update_gitignore(self, path):
+ 
         self.logger.info("  Updating .gitignore with sources")
         gitignore_file = open("%s/%s" % (path, '.gitignore'), 'w')
         source_exts = self.cfgs['skein']['source_exts'].split(',')
@@ -428,28 +429,27 @@ class PySkein:
         dst_makefile.write( src_makefile.read() % {'name': self.rpminfo['name']})
         dst_makefile.close()
 
-    def _upload_sources(self, sources_path):
+    def _upload_source(self, name):
 
-        self.logger.info("== Uploading Sources ==")
-#        os.chdir( sks.lookaside_dir  )
-#        print "CWD: %s" % os.getcwd()
-#        print "PKG: %s" % self.name
+        self.logger.info("== Uploading Source(s) ==")
+        source_dir = "%s/%s/%s" % (self.cfgs['skein']['proj_dir'], name, self.cfgs['skein']['lookaside_dir'])
+        lookaside_host = self.cfgs['lookaside']['host']
+        source_exts = self.cfgs['skein']['source_exts'].split(',')
 
-        for source in self.sources:
-#            print "rsync -vloDtRz -e ssh %s/%s %s@%s:%s/" % (self.name, source, sks.lookaside_user, sks.lookaside_host, sks.lookaside_remote_dir)
+        os.chdir(source_dir)
 
-            self.logger.info("  uploading %s to %s" % (source, sks.lookaside_host))
-            args = ["/usr/bin/rsync", "-loDtRz", "-e", "ssh", "%s/%s" % (self.name, source), "%s@%s:%s/" % ( sks.lookaside_user, sks.lookaside_host, sks.lookaside_remote_dir)]
-            p = subprocess.call(args, cwd="%s" % (sks.lookaside_dir), stdout = subprocess.PIPE)
-#            os.waitpid(p.pid, 0)
-#            print "result %s" % p.communicate()[0]
-#            time.sleep(2)
-
+        for src in os.listdir(os.path.expanduser(source_dir)):
+            if src.rsplit('.')[-1] in source_exts:
+                self.logger.info("  uploading '%s/%s' to '%s'" % (source_dir, src, lookaside_host))
+                args = ["/usr/bin/rsync", "--progress", "-loDtRz", "-e", "ssh", "%s" % src, "%s@%s:%s/%s/" % ( self.cfgs['lookaside']['user'], lookaside_host, self.cfgs['lookaside']['remote_dir'], name)]
+                p = subprocess.call(args, cwd="%s" % (source_dir), stdout = subprocess.PIPE)
 
     def _commit(self, message=None):
         """Commit is only called in two cases, if there are uncommitted changes
         or if there are newly added (aka untracked) files which need to be added to
         the local repository prior to being pushed up to the remote repository.
+
+        :param str message: Optional message, will be prompted if not supplied inline.
 
         """
 
@@ -611,6 +611,37 @@ class PySkein:
             self.logger.debug("Remote class %s in module %s not found" % (remoteClassName, remoteModuleName))
             raise SkeinError("Remote class %s in module %s not found" % (remoteClassName, remoteModuleName))
 
+    def _create_lookaside_dir(self, name):
+        self.logger.info("== Creating project dir on lookaside cache ==")
+        lookaside_dir = "%s/%s" % (self.cfgs['lookaside']['remote_dir'], name)
+        lookaside_host = self.cfgs['lookaside']['host']
+        lookaside_user = self.cfgs['lookaside']['grant_user']
+
+        args = ["/usr/bin/ssh", "%s@%s" % (lookaside_user, lookaside_host), '/bin/mkdir %s' % lookaside_dir]
+        print "args: %s" % args
+        p = subprocess.call(args, cwd=".", stdout = subprocess.PIPE)
+
+    def _enable_pkg(self, name, summary, url, gitowner=None, kojiowner=None, tag=None):
+
+        if not tag:
+            tag = self.cfgs['koji']['latest_tag']
+
+        self.gitremote.create_remote_repo(name, summary, url)
+        self.gitremote.create_team("%s_%s" % (self.cfgs['skein']['team_prefix'], name), 'admin', gitowner, [name])
+
+        try:
+            if not self.kojisession.checkTagPackage(tag, name):
+                self.kojisession.packageListAdd(tag, name, owner=kojiowner)
+                self.logger.info("== Added package '%s' to the tag '%s'" % (name, tag))
+                print "Added package '%s' to the tag '%s'" % (name, tag)
+            else:
+                self.logger.info("== Package '%s' already added to tag '%s'" % (name, tag))
+                print "Package '%s' already added to tag '%s', skipping" % (name, tag)
+
+        except (xmlrpclib.Fault,koji.GenericError) as e:
+            raise SkeinError("Unable to tag package %s due to error: %s" % (name, e))
+
+
     def request_remote_repo(self, args):
         self._init_git_remote()
         return self.gitremote.request_remote_repo(args.name)
@@ -634,26 +665,6 @@ class PySkein:
         print "Package Name: %s" % name
         print "Package Summary: %s" % summary
         print "Package URL: %s\n" % url
-
-    def _enable_pkg(self, name, summary, url, gitowner=None, kojiowner=None, tag=None):
-
-        if not tag:
-            tag = self.cfgs['koji']['latest_tag']
-
-        self.gitremote.create_remote_repo(name, summary, url)
-        self.gitremote.create_team("%s_%s" % (self.cfgs['skein']['team_prefix'], name), 'admin', gitowner, [name])
-
-        try:
-            if not self.kojisession.checkTagPackage(tag, name):
-                self.kojisession.packageListAdd(tag, name, owner=kojiowner)
-                self.logger.info("== Added package '%s' to the tag '%s'" % (name, tag))
-                print "Added package '%s' to the tag '%s'" % (name, tag)
-            else:
-                self.logger.info("== Package '%s' already added to tag '%s'" % (name, tag))
-                print "Package '%s' already added to tag '%s', skipping" % (name, tag)
-
-        except (xmlrpclib.Fault,koji.GenericError) as e:
-            raise SkeinError("Unable to tag package %s due to error: %s" % (name, e))
 
     def revoke_request(self, args):
 
@@ -713,6 +724,7 @@ class PySkein:
 
             self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
             self._enable_pkg(name, summary, url, gitowner, kojiowner, tag)
+            self._create_lookaside_dir(name)
             self.gitremote.close_repo_request(args.id, name)
 
     def do_extract_pkg(self, args):
@@ -753,6 +765,10 @@ class PySkein:
             message = args.message
 
         self._push_to_remote(message)
+
+    def do_upload(self, args):
+        name = args.name
+        self._upload_source(name)
 
     def do_build_pkg(self, args):
 
@@ -867,8 +883,8 @@ def main():
 
 
 
-    p.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
-    p.set_defaults(func=ps.do_extract_pkg)
+    p.add_argument("name", help=u"directory to create in lookaside")
+    p.set_defaults(func=ps.create_lookaside)
 
     args = p.parse_args()
     args.func(args)
