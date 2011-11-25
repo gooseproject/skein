@@ -16,6 +16,8 @@ import ConfigParser
 # import the rpm parsing stuff
 import rpm
 
+from urllib2 import HTTPError
+
 # koji can replace rpm above and do package building
 import koji
 import xmlrpclib
@@ -608,8 +610,8 @@ class PySkein:
                                       [remoteClassName])
             self.gitremote = GitRemote(remoteModule.__dict__[remoteClassName], self.cfgs, self.logger)
         except ImportError, e:
-            self.logger.debug("Remote class %s in module %s not found" % (remoteClassName, remoteModuleName))
-            raise SkeinError("Remote class %s in module %s not found" % (remoteClassName, remoteModuleName))
+            self.logger.debug("Remote class %s in module %s not found: %s" % (remoteClassName, remoteModuleName, e))
+            raise SkeinError("Remote class %s in module %s not found: %s" % (remoteClassName, remoteModuleName, e))
 
     def _create_lookaside_dir(self, name):
         self.logger.info("== Creating project dir on lookaside cache ==")
@@ -641,6 +643,22 @@ class PySkein:
         except (xmlrpclib.Fault,koji.GenericError) as e:
             raise SkeinError("Unable to tag package %s due to error: %s" % (name, e))
 
+    def repo_info(self, args):
+        """Grab useful information from a repository
+
+        :param str args.name: repository name
+        """
+        name = args.name
+
+        self._init_git_remote()
+        repo_info = self.gitremote.repo_info(name)
+
+        print "Repo: %s" % name
+        print "-------------------------"
+        for k in repo_info.iterkeys():
+            print "%s\t\t\t%s" % (k.ljust(15), repo_info[k])
+
+        print
 
     def request_remote_repo(self, args):
         self._init_git_remote()

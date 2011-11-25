@@ -38,3 +38,6 @@ class GitRemote():
 
     def revoke_repo_request(self, request_id, name):
         return self.remote.revoke_repo_request(request_id, name)
+
+    def repo_info(self, name):
+        return self.remote.repo_info(name)

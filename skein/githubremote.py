@@ -14,6 +14,7 @@ from pyskein import SkeinError
 
 # github api and token should be kept secret
 from github2.client import Github
+from github2.request import HttpError
 
 from gitremote import GitRemote
 
@@ -224,3 +225,16 @@ class GithubRemote(GitRemote):
 
     def get_scm_url(self, name):
         return "%s/%s.git" % (self.cfgs['github']['remote_base'], name)
+
+    def repo_info(self, name):
+        """ Get information about a selected repository
+
+        :param str name: repository name
+        """
+
+        try:
+            repo = self.github.repos.show("%s/%s" % (self.cfgs['github']['org'], name))
+            return { 'description': repo.description, 'homepage': repo.homepage, 'url': repo.url, 'created_time': repo.created_at }
+        except HttpError:
+            raise SkeinError("Unable to locate repository for '%s' at '%s'" % (name, self.cfgs['github']['org']))
+

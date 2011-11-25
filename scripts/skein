@@ -69,6 +69,10 @@ def main():
     p_revoke.add_argument("id", help=u"id of repo request to be revoked")
     p_revoke.set_defaults(func=ps.revoke_request)
 
+    p_repo_info = sp.add_parser("info", help=u"request information about a repository")
+    p_repo_info.add_argument("name", help=u"name of repo")
+    p_repo_info.set_defaults(func=ps.repo_info)
+
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")
     p_build.add_argument("name", help=u"name of the package")
