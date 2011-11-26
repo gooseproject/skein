@@ -32,19 +32,22 @@ class GithubRemote(GitRemote):
         return self.name
 
     def _login(self):
-
         return Github(username=self.cfgs['github']['username'], api_token=self.cfgs['github']['api_token'])
 
-    def request_remote_repo(self, pkg):
+    def _request_by_editor(self, name):
+        """ Set request values with the EDITOR value
 
-        self.logger.info("== Requesting github repository for '%s/%s' ==" % (self.org, pkg))
+        :param str name: repository name
+        """
 
         reason = None
         editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
 
         tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
 
-        tmp_file.write(self.cfgs['github']['initial_message'])
+        initial_message = "%s\n====\n%s\n%s\n%s\n====\n" % (self.cfgs['github']['reason_default'], self.cfgs['github']['summary_default'], self.cfgs['github']['url_default'], self.cfgs['github']['branches_default'])
+
+        tmp_file.write(initial_message)
         tmp_file.flush()
 
         cmd = [editor, tmp_file.name]
@@ -54,34 +57,60 @@ class GithubRemote(GitRemote):
             f = open(tmp_file.name, 'r')
             reason = f.read()
 
-#            print "r: %s" % reason
-#            print "i: %s" % self.cfgs['github']['initial_message']
-
             if not reason:
                 raise SkeinError("Description required.")
-            elif reason == self.cfgs['github']['initial_message']:
+            elif reason == initial_message:
                 raise SkeinError("Description has not changed.")
 
         except subprocess.CalledProcessError:
             raise SkeinError("Action cancelled by user.")
+#         elif summary and not url:
+
+        self.logger.info("== Requesting github repository for '%s/%s' ==" % (self.org, name))
+
+    def _request_from_srpm(self, summary, url):
+        """ Request a new github repository with values from an srpm
+
+        :param str summary: repository summary
+        :param str url: repository url
+        """
+
+        initial_message = "%s\n====\n%s\n%s\n%s\n====" % (self.cfgs['github']['request_reason'], self.cfgs['github']['request_summary'], self.cfgs['github']['request_url'], self.cfgs['github']['branches_default'])
+
+        return initial_message % (summary, url)
+
+    def request_repo(self, name, summary=False, url=False):
+        """ Request a new github repository
+
+        :param str name: repository name
+        """
+
+        if not summary or not url:
+            reason = self._request_by_editor(name)
+        elif summary and url:
+            reason = self._request_from_srpm(summary, url)
+        #    print "SRPM initial message:\n\n%s" % reason
+        elif not summary:
+            raise SkeinError("Missing summary.")
+        elif not url:
+            raise SkeinError("Missing url.")
 
         try:
-
             for i in self.github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
-                if i.title.lower().find(pkg) != -1:
+                if i.title.lower().find(name) != -1:
                     print "Possible conflict with package: '%s'" % i.title
                     print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
                     raise SkeinError("Please file this request at %s/%s/%s if you are sure this is not a conflict."
                             % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'] ))
 
-            req = self.github.issues.open(u"%s" % self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % pkg, reason)
-            self.github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), req.number, self.cfgs['github']['new_repo_issue_label'])
+            req = self.github.issues.open(self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % name, reason)
+            self.github.issues.add_label(self.cfgs['github']['issue_project'], req.number, self.cfgs['github']['new_repo_issue_label'])
 
             if req:
-                print "Issue %d created for new repo: %s." % (req.number, pkg)
+                print "Issue %d created for new repo: %s." % (req.number, name)
                 print "Visit https://github.com/%s/issues/%d to assign or view the issue." % (self.cfgs['github']['issue_project'], req.number)
 
-            self.logger.info("  Request for '%s/%s' complete" % (self.org, pkg))
+            self.logger.info("  Request for '%s/%s' complete" % (self.org, name))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  error: %s" %e)
@@ -101,8 +130,10 @@ class GithubRemote(GitRemote):
 
         print u"#\tDescription\t\t\t\t\tRequestor\tURL"
         print u"-----------------------------------------------------------------------------"
+
         for r in newrepo:
             print u"%d\t%s\t\t%s\t\t%s/%s/%s/%d" % ( r.number, r.title.ljust(35), r.user, self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], r.number)
+
         print
 
     def _get_request_detail(self, request):
@@ -158,10 +189,10 @@ class GithubRemote(GitRemote):
         self.logger.info("  Remote '%s/%s' created" % (self.org, name))
     
     def revoke_repo_request(self, request_id, name):
-        self.logger.info("== Revoking github repository request'%s/%s' ==" % (self.org, name))
+        self.logger.info("== Revoking github repository request '%s/%s' ==" % (self.org, name))
 
         try:
-            self.github.issues.add_label(u"%s" % (self.cfgs['github']['issue_project']), request_id, self.cfgs['github']['revoked_repo_issue_label'])
+            self.github.issues.add_label(self.cfgs['github']['issue_project'], request_id, self.cfgs['github']['revoked_repo_issue_label'])
             self.github.issues.remove_label(u"%s" % (self.cfgs['github']['issue_project']), request_id, self.cfgs['github']['new_repo_issue_label'])
             self.github.issues.comment(self.cfgs['github']['issue_project'], request_id, self.cfgs['github']['revoking_comment_text'] % name)
             self.github.issues.close(self.cfgs['github']['issue_project'], request_id)

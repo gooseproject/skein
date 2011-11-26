@@ -147,9 +147,12 @@ class PySkein:
         self.username = None
 
         config = ConfigParser.SafeConfigParser()
-        f = open('/etc/skein/skein.cfg')
-        config.readfp(f)
-        f.close()
+        try:
+            f = open('/etc/skein/skein.cfg')
+            config.readfp(f)
+            f.close()
+        except ConfigParser.InterpolationSyntaxError as e:
+            raise SkeinError("Unable to parse configuration file properly: %s" % e)
 
         self.cfgs = {}
 
@@ -242,8 +245,8 @@ class PySkein:
             try:
                 self.kojisession.ssl_login(defaults['cert'], defaults['ca'],
                                            defaults['serverca'])
-            except:
-                raise SkeinError('Opening a SSL connection failed')
+            except Exception as e:
+                raise SkeinError("Opening a SSL connection failed: '%s'" % e)
             if not self.kojisession.logged_in:
                 raise SkeinError('Could not auth with koji as %s' % user)
         return self.kojisession
@@ -254,7 +257,6 @@ class PySkein:
 
         :param str srpm: path to the source RPM (SRPM)
         """
-
 
         self.logger.info("== Querying srpm ==")
         ts = rpm.ts()
@@ -661,8 +663,25 @@ class PySkein:
         print
 
     def request_remote_repo(self, args):
+        """Request a new remote repository for importing
+
+        """
+
+        if not args.name and not args.path:
+            raise SkeinError("Please supply either a name or path")
+        if args.name and args.path:
+            raise SkeinError("Please supply either a name or path, not both")
+
         self._init_git_remote()
-        return self.gitremote.request_remote_repo(args.name)
+        if args.name:
+            name = args.name
+            return self.gitremote.request_repo(name)
+
+        if args.path:
+            path = args.path
+            # need to get the name, summary and url values from the srpm
+            self._set_srpm_details(path)
+            return self.gitremote.request_repo(self.rpminfo['name'], self.rpminfo['summary'], self.rpminfo['url'])
 
     def search_repo_requests(self, args):
         self._init_git_remote()
@@ -690,11 +709,6 @@ class PySkein:
 
         name, summary, url, gitowner = self.gitremote.show_request_by_id(args.id)
 
-        try:
-            kojiowner = self.cfgs['koji']['owner']
-        except:
-            pass
-
         if not self.gitremote.request_is_open(args.id):
             raise SkeinError("Request for '%s' is not open...\n     Move along, nothing to see here!" % name)
 
@@ -703,9 +717,6 @@ class PySkein:
         valid = raw_input("Is the above information correct? (y/N) ")
 
         if valid.lower() == 'y':
-            kojiconfig = None
-
-            self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
             self.gitremote.revoke_repo_request(args.id, name)
 
     def grant_request(self, args):
@@ -756,7 +767,7 @@ class PySkein:
                 self._install_srpm(u"%s" % (srpm))
 
                 proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], self.rpminfo['name'])
-                print "spec_dest: %s" % proj_dir
+#                print "spec_dest: %s" % proj_dir
 
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']))
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
