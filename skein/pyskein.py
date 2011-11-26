@@ -622,7 +622,6 @@ class PySkein:
         lookaside_user = self.cfgs['lookaside']['grant_user']
 
         args = ["/usr/bin/ssh", "%s@%s" % (lookaside_user, lookaside_host), '/bin/mkdir %s' % lookaside_dir]
-        print "args: %s" % args
         p = subprocess.call(args, cwd=".", stdout = subprocess.PIPE)
 
     def _enable_pkg(self, name, summary, url, gitowner=None, kojiowner=None, tag=None):
