@@ -102,7 +102,7 @@ class GithubRemote(GitRemote):
         elif not summary:
             raise SkeinError("Missing summary.")
         elif not url:
-            raise SkeinError("Missing url.")
+            url = '(none)'
 
         try:
             issues = self.github.issues.list(self.cfgs['github']['issue_project'], state='open')
