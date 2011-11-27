@@ -771,7 +771,7 @@ class PySkein:
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']))
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
 
-                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
+                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), self.rpminfo['name'])
 
                 # copy sources, both archives and patches. Archives go to lookaside_dir, patches and other sources go to git_dir
                 src_dest = "%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir'])
