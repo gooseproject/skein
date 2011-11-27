@@ -678,9 +678,10 @@ class PySkein:
 
         if args.path:
             path = args.path
+            force = args.force
             # need to get the name, summary and url values from the srpm
             self._set_srpm_details(path)
-            return self.gitremote.request_repo(self.rpminfo['name'], self.rpminfo['summary'], self.rpminfo['url'])
+            return self.gitremote.request_repo(self.rpminfo['name'], self.rpminfo['summary'], self.rpminfo['url'], force)
 
     def search_repo_requests(self, args):
         self._init_git_remote()
@@ -698,9 +699,9 @@ class PySkein:
 
         print "\nDetails for request # %s, requested by: %s" % (args.id, owner)
         print "-------------------------"
-        print "Package Name: %s" % name
-        print "Package Summary: %s" % summary
-        print "Package URL: %s\n" % url
+        print "Package Name: %s" % name.encode('utf-8')
+        print "Package Summary: %s" % summary.encode('utf-8')
+        print "Package URL: %s\n" % url.encode('utf-8')
 
     def revoke_request(self, args):
 

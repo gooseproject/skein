@@ -33,8 +33,9 @@ def main():
     p_deplist.set_defaults(func=ps.list_deps)
 
     p_request = sp.add_parser("request", help=u"request a new repo for upstream")
-    p_request.add_argument("--name", help=u"name of repository being requested")
-    p_request.add_argument("--path", help=u"path to source rpms (SRPM)")
+    p_request.add_argument("--name", metavar="name", help=u"name of repository being requested")
+    p_request.add_argument("--path", metavar="path", help=u"path to source rpms (SRPM)")
+    p_request.add_argument("--force", "-f",  action="store_true", help=u"don't confirm information (only works with --path)")
     p_request.set_defaults(func=ps.request_remote_repo)
 
     p_query = sp.add_parser("query", help=u"query upstream repo requests")
