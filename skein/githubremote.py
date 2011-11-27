@@ -68,18 +68,27 @@ class GithubRemote(GitRemote):
 
         self.logger.info("== Requesting github repository for '%s/%s' ==" % (self.org, name))
 
-    def _request_from_srpm(self, summary, url):
+    def _request_from_srpm(self, summary, url, force):
         """ Request a new github repository with values from an srpm
 
         :param str summary: repository summary
         :param str url: repository url
+        :param str force: don't prompt
         """
 
-        initial_message = "%s\n====\n%s\n%s\n%s\n====" % (self.cfgs['github']['request_reason'], self.cfgs['github']['request_summary'], self.cfgs['github']['request_url'], self.cfgs['github']['branches_default'])
+        if not force:
+            print "\nSummary: %s\nURL: %s\n" % (summary, url)
+            valid = 'n'
+            valid = raw_input("Is the above information correct? (y/N) ")
+        else:
+            valid = 'y'
+
+        if valid.lower() == 'y':
+            initial_message = "%s\n====\n%s\n%s\n%s\n====" % (self.cfgs['github']['request_reason'], self.cfgs['github']['request_summary'], self.cfgs['github']['request_url'], self.cfgs['github']['branches_default'])
 
         return initial_message % (summary, url)
 
-    def request_repo(self, name, summary=False, url=False):
+    def request_repo(self, name, summary=False, url=False, force=False):
         """ Request a new github repository
 
         :param str name: repository name
@@ -88,7 +97,7 @@ class GithubRemote(GitRemote):
         if not summary or not url:
             reason = self._request_by_editor(name)
         elif summary and url:
-            reason = self._request_from_srpm(summary, url)
+            reason = self._request_from_srpm(summary, url, force)
         #    print "SRPM initial message:\n\n%s" % reason
         elif not summary:
             raise SkeinError("Missing summary.")
