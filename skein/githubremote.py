@@ -103,17 +103,21 @@ class GithubRemote(GitRemote):
             raise SkeinError("Missing summary.")
         elif not url:
             url = '(none)'
+            reason = self._request_from_srpm(summary, url, force)
 
         try:
-            issues = self.github.issues.list(self.cfgs['github']['issue_project'], state='open')
+            issues = self.github.issues.search(self.cfgs['github']['issue_project'], name, state='open')
+            issues_closed = self.github.issues.search(self.cfgs['github']['issue_project'], name, state='closed')
+
+            issues.extend(issues_closed)
+
             for i in issues:
 #            for i in self.github.issues.list_by_label(self.cfgs['github']['issue_project'], self.cfgs['github']['new_repo_issue_label']):
-#                print "Title: %s | Name: %s | State: %s" % (i.title.lower(), name, i.state)
-                if i.title.lower().find(name) != -1:
-                    print "Possible conflict with package: '%s'" % i.title
-                    print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
-                    raise SkeinError("Please file this request at %s/%s/%s if you are sure this is not a conflict."
-                            % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'] ))
+
+                print "Possible conflict with request: '%s'" % i.title.split(':')[1].strip()
+                print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
+                raise SkeinError("Please file this request at %s/%s/%s if you are sure this is not a conflict."
+                        % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'] ))
 
             req = self.github.issues.open(self.cfgs['github']['issue_project'], self.cfgs['github']['issue_title'] % name, reason)
             self.github.issues.add_label(self.cfgs['github']['issue_project'], req.number, self.cfgs['github']['new_repo_issue_label'])
