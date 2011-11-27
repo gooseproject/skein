@@ -94,7 +94,7 @@ class GithubRemote(GitRemote):
         :param str name: repository name
         """
 
-        if not summary or not url:
+        if not summary and not url:
             reason = self._request_by_editor(name)
         elif summary and url:
             reason = self._request_from_srpm(summary, url, force)
