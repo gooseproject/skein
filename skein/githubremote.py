@@ -105,7 +105,10 @@ class GithubRemote(GitRemote):
             raise SkeinError("Missing url.")
 
         try:
-            for i in self.github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
+            issues = self.github.issues.list(self.cfgs['github']['issue_project'], state='open')
+            for i in issues:
+#            for i in self.github.issues.list_by_label(self.cfgs['github']['issue_project'], self.cfgs['github']['new_repo_issue_label']):
+#                print "Title: %s | Name: %s | State: %s" % (i.title.lower(), name, i.state)
                 if i.title.lower().find(name) != -1:
                     print "Possible conflict with package: '%s'" % i.title
                     print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
@@ -125,13 +128,13 @@ class GithubRemote(GitRemote):
             self.logger.debug("  error: %s" %e)
 
     def search_repo_requests(self, state='open'):
-        self.logger.info("== Searching '%s' github repository requests from '%s' ==" % (state, self.org))
+        self.logger.info("== Searching '%s' github repository requests from '%s' ==" % (state, self.cfgs['github']['issue_project']))
 
         newrepo = []
         try:
             issues = self.github.issues.list(self.cfgs['github']['issue_project'], state=state)
 
-            [newrepo.append(i) for i in issues if 'new repo' in i.labels]
+            [newrepo.append(i) for i in issues if self.cfgs['github']['new_repo_issue_label'] in i.labels]
             self.logger.info("  Grabbed %d new repo requests" % (len(newrepo)))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
