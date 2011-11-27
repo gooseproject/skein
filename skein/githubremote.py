@@ -128,13 +128,13 @@ class GithubRemote(GitRemote):
             self.logger.debug("  error: %s" %e)
 
     def search_repo_requests(self, state='open'):
-        self.logger.info("== Searching '%s' github repository requests from '%s' ==" % (state, self.org))
+        self.logger.info("== Searching '%s' github repository requests from '%s' ==" % (state, self.cfgs['github']['issue_project']))
 
         newrepo = []
         try:
             issues = self.github.issues.list(self.cfgs['github']['issue_project'], state=state)
 
-            [newrepo.append(i) for i in issues if 'new repo' in i.labels]
+            [newrepo.append(i) for i in issues if self.cfgs['github']['new_repo_issue_label'] in i.labels]
             self.logger.info("  Grabbed %d new repo requests" % (len(newrepo)))
         except RuntimeError, e:
             # assume repo already exists if this is thrown
