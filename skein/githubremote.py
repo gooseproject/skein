@@ -105,7 +105,10 @@ class GithubRemote(GitRemote):
             raise SkeinError("Missing url.")
 
         try:
-            for i in self.github.issues.list_by_label(self.cfgs['github']['issue_project'], 'new repo'):
+            issues = self.github.issues.list(self.cfgs['github']['issue_project'], state='open')
+            for i in issues:
+#            for i in self.github.issues.list_by_label(self.cfgs['github']['issue_project'], self.cfgs['github']['new_repo_issue_label']):
+#                print "Title: %s | Name: %s | State: %s" % (i.title.lower(), name, i.state)
                 if i.title.lower().find(name) != -1:
                     print "Possible conflict with package: '%s'" % i.title
                     print "%s/%s/%s/%d." % (self.cfgs['github']['url'], self.cfgs['github']['issue_project'], self.cfgs['github']['issues_uri'], i.number)
