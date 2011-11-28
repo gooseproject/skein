@@ -145,21 +145,13 @@ class PySkein:
         """
 
         self.username = None
-
-        config = ConfigParser.SafeConfigParser()
-        try:
-            f = open('/etc/skein/skein.cfg')
-            config.readfp(f)
-            f.close()
-        except ConfigParser.InterpolationSyntaxError as e:
-            raise SkeinError("Unable to parse configuration file properly: %s" % e)
-
         self.cfgs = {}
 
-        for section in config.sections():
-            self.cfgs[section] = {}
-            for k, v in config.items(section):
-                self.cfgs[section][k] = v
+        for path in ['/etc/skein', '~/.skein']:
+            expanded_path = "%s/%s" % (os.path.expanduser(path), 'skein.cfg')
+            print "expanded_path: %s" % expanded_path
+            if os.path.exists(expanded_path):
+                self._load_config(expanded_path)
 
         self._makedir(self.cfgs['skein']['install_root'])
 
@@ -176,6 +168,27 @@ class PySkein:
         fh.setFormatter(formatter)
         # add the handlers to the logger
         self.logger.addHandler(fh)
+
+    def _load_config(self, path):
+        """Constructor for skein, will create self.cfgs and self.logger
+
+        :param str path: skein.cfg path
+        """
+
+        config = ConfigParser.SafeConfigParser()
+        try:
+            f = open(path)
+            config.readfp(f)
+            f.close()
+        except ConfigParser.InterpolationSyntaxError as e:
+            raise SkeinError("Unable to parse configuration file properly: %s" % e)
+
+        for section in config.sections():
+            if not self.cfgs.has_key(section):
+                self.cfgs[section] = {}
+
+            for k, v in config.items(section):
+                self.cfgs[section][k] = v
 
     def _makedir(self, target, perms=0775):
         """Make a directory, possibly with specific permissions
@@ -413,7 +426,7 @@ class PySkein:
     def _do_makefile(self, dest_path):
         self.logger.info("  Updating Makefile")
         found = False
-        for path in self.cfgs['makefile']['path'].split(':'):
+        for path in self.cfgs['skein']['path'].split(':'):
             expanded_path = "%s/%s" % (os.path.expanduser(path), self.cfgs['makefile']['name'])
 #            print "expanded_path: %s" % expanded_path
             if os.path.exists(expanded_path):
@@ -422,8 +435,8 @@ class PySkein:
                 break
 
         if not found:
-            self.logger.error("'%s' not found in path '%s', please adjust skein.cfg" % (self.cfgs['makefile']['name'], self.cfgs['makefile']['path']))
-            raise SkeinError("'%s' not found in path '%s', please adjust skein.cfg" % (self.cfgs['makefile']['name'], self.cfgs['makefile']['path']))
+            self.logger.error("'%s' not found in path '%s', please adjust skein.cfg" % (self.cfgs['makefile']['name'], self.cfgs['skein']['path']))
+            raise SkeinError("'%s' not found in path '%s', please adjust skein.cfg" % (self.cfgs['makefile']['name'], self.cfgs['skein']['path']))
 
 #        print "makefile template found at %s" % makefile_template
 
