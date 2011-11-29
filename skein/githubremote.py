@@ -64,9 +64,8 @@ class GithubRemote(GitRemote):
 
         except subprocess.CalledProcessError:
             raise SkeinError("Action cancelled by user.")
-#         elif summary and not url:
 
-        self.logger.info("== Requesting github repository for '%s/%s' ==" % (self.org, name))
+        return reason
 
     def _request_from_srpm(self, summary, url, force):
         """ Request a new github repository with values from an srpm
@@ -93,6 +92,8 @@ class GithubRemote(GitRemote):
 
         :param str name: repository name
         """
+
+        self.logger.info("== Requesting github repository for '%s/%s' ==" % (self.org, name))
 
         if not summary and not url:
             reason = self._request_by_editor(name)
@@ -195,6 +196,8 @@ class GithubRemote(GitRemote):
 
         try:
             for team in self.cfgs['github']['repo_teams'].split(","):
+                print "adding project '%s' to team '%s'" % (name, team)
+                self.logger.info("  adding project '%s' to team '%s'" % (name, team))
                 self.github.teams.add_project(team.strip(), u"%s/%s" % (self.org, name))
 
         except RuntimeError, e:
@@ -273,15 +276,31 @@ class GithubRemote(GitRemote):
     def get_scm_url(self, name):
         return "%s/%s.git" % (self.cfgs['github']['remote_base'], name)
 
-    def repo_info(self, name):
+    def repo_info(self, name, show_commits=True, branch='master', page=1):
         """ Get information about a selected repository
 
         :param str name: repository name
+        :param str show_commits (optional): return git commits
+        :param str branch (optional): detail from which branch, master is default
+        :param str page (optional): page number
         """
 
+        repo_detail = {}
         try:
             repo = self.github.repos.show("%s/%s" % (self.cfgs['github']['org'], name))
-            return { 'description': repo.description, 'homepage': repo.homepage, 'url': repo.url, 'created_time': repo.created_at }
+            repo_detail = { 'description': repo.description, 'homepage': repo.homepage, 'url': repo.url, 'created_time': repo.created_at, 'size': repo.size }
         except HttpError:
             raise SkeinError("Unable to locate repository for '%s' at '%s'" % (name, self.cfgs['github']['org']))
+
+        commit_detail = {}
+        if repo.size and show_commits:
+            commits = self.github.commits.list("%s/%s" % (self.cfgs['github']['org'], name), branch=branch, page=page)
+
+            for c in commits:
+                commit_detail[c.committed_date.strftime("%Y-%m-%d %H:%M:%s %Z")] = {'id': c.id, 'author': c.author, 'committer': c.committer, 'message': c.message}
+
+        repo_detail['commits'] = commit_detail
+
+        return repo_detail
+
 
