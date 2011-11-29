@@ -149,7 +149,6 @@ class PySkein:
 
         for path in ['/etc/skein', '~/.skein']:
             expanded_path = "%s/%s" % (os.path.expanduser(path), 'skein.cfg')
-            print "expanded_path: %s" % expanded_path
             if os.path.exists(expanded_path):
                 self._load_config(expanded_path)
 
@@ -662,7 +661,10 @@ class PySkein:
 
         :param str args.name: repository name
         """
+
         name = args.name
+
+        self.logger.info("== Gathering repo information for '%s'" % name)
 
         self._init_git_remote()
         repo_info = self.gitremote.repo_info(name)
@@ -670,7 +672,17 @@ class PySkein:
         print "Repo: %s" % name
         print "-------------------------"
         for k in repo_info.iterkeys():
-            print "%s\t\t\t%s" % (k.ljust(15), repo_info[k])
+            if k != 'commits':
+                print "%s\t\t\t%s" % (k.ljust(15), repo_info[k])
+
+        if args.commits:
+            print "\n-- Commit Detail -- (All times are PST)"
+            if repo_info['size']:
+                commit_detail = repo_info['commits']
+                for k in sorted(commit_detail.keys(), reverse=True):
+                    print "%8s\t%s\t%s\t%s" % (commit_detail[k]['id'][:8], k[:16], commit_detail[k]['committer']['login'], commit_detail[k]['message'])
+            else:
+                print "No commits have been pushed."
 
         print
 
@@ -685,6 +697,7 @@ class PySkein:
             raise SkeinError("Please supply either a name or path, not both")
 
         self._init_git_remote()
+
         if args.name:
             name = args.name
             return self.gitremote.request_repo(name)
