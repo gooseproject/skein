@@ -50,6 +50,7 @@ class TaskWatcher(object):
         self.info = None
         self.level = level
         self.quiet = quiet
+        self.logger = logging.getLogger('skein')
 
     #XXX - a bunch of this stuff needs to adapt to different tasks
 
@@ -355,7 +356,7 @@ class PySkein:
         # copy the patch files
         for source in self.rpminfo['patches']:
             self.logger.info("  copying '%s' to '%s'" % (source, git_dest))
-            shutil.copy2(spec_path, git_dest)
+            shutil.copy2("%s/%s" % (sources_path, source), git_dest)
     
     # this method assumes the sources are new and overwrites the 'sources' file in the git repository
     def _generate_sha256(self, sources_dest, git_dest):
@@ -393,6 +394,8 @@ class PySkein:
 
         try:
             self.repo = git.Repo(repo_dir)
+        except NoSuchPathError as e:
+            raise SkeinError("Path '%s' does not exist, please run 'skein extract' first" % e)
         except InvalidGitRepositoryError, e:
             gitrepo = git.Git(repo_dir)
             cmd = ['git', 'init']
@@ -858,10 +861,10 @@ class PySkein:
         #print "Task-ID: %s" % task_id
         print "Task URL: %s/%s?taskID=%s" % ('http://koji.gooselinux.org/koji', 'taskinfo', task_id) 
 
-        self._watch_koji_tasks(self.kojisession, [task_id])
-
         self.kojisession.logout()
 
+        if not args.nowait:
+            self._watch_koji_tasks(self.kojisession, [task_id])
 
     def list_deps(self, args):
 

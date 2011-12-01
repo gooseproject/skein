@@ -75,13 +75,14 @@ def main():
 
     p_repo_info = sp.add_parser("info", help=u"request information about a repository")
     p_repo_info.add_argument("name", help=u"name of repo")
-    p_repo_info.add_argument("-c", "--commits", action="store_true", help=u"show commit data")
+    p_repo_info.add_argument("-c", "--commits", action="store_true", help=u"me of repo")
     p_repo_info.set_defaults(func=ps.repo_info)
 
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("target", help=u"tag applied to successful build")
     p_build.add_argument("name", help=u"name of the package")
     p_build.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
+    p_build.add_argument("--nowait", action="store_true", help=u"don't wait for build to finish")
     p_build.set_defaults(func=ps.do_build_pkg)
 
     args = p.parse_args()
