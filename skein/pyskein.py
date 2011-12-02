@@ -526,7 +526,7 @@ class PySkein:
             # commit files added to the index
             index.commit(message)
 
-    def _push_to_remote(self, message=None):
+    def _push_to_remote(self, name, message=None):
         """Push any/all changes to remote repository
 
         :param str name: repository name (same as package)
@@ -534,8 +534,11 @@ class PySkein:
 
         self.logger.info("== Pushing git repo ==")
 
+        self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
+        proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
+
         if self.repo.is_dirty() or self.repo.untracked_files:
-            self.logger.debug("   repo %s is a dirty girl!" % self.repo)
+            self.logger.debug("   repo '%s' has been a DIRTY girl!" % self.repo)
             self._commit(message)
 
         try:
@@ -786,6 +789,13 @@ class PySkein:
             self.gitremote.close_repo_request(args.id, name)
 
     def do_extract_pkg(self, args):
+        """Extract a package. Copies the spec, sources and patches appropriately 
+        in preparation for a commit and push (skein push) and upload to the lookaside 
+        cache (skein upload)
+
+        :param str args.path: path to source rpm
+        :param str args.message (optional): commit message
+        """
 
         for p in args.path:
             srpms = self._get_srpm_list(p)
@@ -813,20 +823,42 @@ class PySkein:
                 self._do_makefile(git_dest)
 
     def do_push(self, args):
+        """Push to remote git repository
+
+        :param str args.name: repository name
+        :param str args.message (optional): commit message
+        """
 
         name = args.name
-        proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
-        self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
-
         message = None
         if args.message:
             message = args.message
 
-        self._push_to_remote(message)
+        self._push_to_remote(name, message)
 
     def do_upload(self, args):
+        """Upload source(s) to lookaside cache
+
+        :param str args.name: repository name
+        """
+
         name = args.name
         self._upload_source(name)
+
+    def do_import(self, args):
+        """Import a package. Performs extract, push and upload (in that order)
+
+        :param str args.path: path to source rpm
+        :param str args.message (optional): commit message
+        """
+
+        self.do_extract_pkg(args)
+
+        name = self.rpminfo['name']
+
+        self._push_to_remote(name)
+        self._upload_source(name)
+
 
     def do_build_pkg(self, args):
 
