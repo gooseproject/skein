@@ -30,7 +30,6 @@ def main():
 #    p_upload.set_defaults(func=ps.do_sources)
 
     p_deplist = sp.add_parser("deplist", help=u"return dependencies to build srpm")
-    #p_import.add_argument("path", nargs='+', help=u"path to srpm. If dir given, will import all srpms")
     p_deplist.add_argument("path", help=u"path to srpm. If dir given, will import all srpms")
     p_deplist.set_defaults(func=ps.list_deps)
 
@@ -62,12 +61,17 @@ def main():
 
     p_push = sp.add_parser("push", help="commit and push existing git repo to remote")
     p_push.add_argument("name", help="package/repo name to push. Expects to have existing uncommitted files.")
-    p_push.add_argument("-m", "--message", metavar="message_data", help="Commit message.")
+    p_push.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
     p_push.set_defaults(func=ps.do_push)
 
     p_upload = sp.add_parser("upload", help="upload source archives to lookaside")
     p_upload.add_argument("name", help="package name to upload. Uses rsync to upload.")
     p_upload.set_defaults(func=ps.do_upload)
+
+    p_import = sp.add_parser("extract", help=u"import srpm(s). Performs extract, push and upload.")
+    p_import.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
+    p_push.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
+    p_import.set_defaults(func=ps.do_extract_pkg)
 
     p_revoke = sp.add_parser("revoke", help=u"revoke a repo create request")
     p_revoke.add_argument("id", help=u"id of repo request to be revoked")

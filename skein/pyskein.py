@@ -845,6 +845,21 @@ class PySkein:
         name = args.name
         self._upload_source(name)
 
+    def do_import(self, args):
+        """Import a package. Performs extract, push and upload (in that order)
+
+        :param str args.path: path to source rpm
+        :param str args.message (optional): commit message
+        """
+
+        self.do_extract_pkg(args)
+
+        name = self.rpminfo['name']
+
+        self._push_to_remote(name)
+        self._upload_source(name)
+
+
     def do_build_pkg(self, args):
 
         kojiconfig = None
