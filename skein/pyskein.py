@@ -3,8 +3,10 @@
 import os
 import re
 import sys
-import stat
+import rpm
 import time
+import glob
+import stat
 import shutil
 import hashlib
 import logging
@@ -13,12 +15,8 @@ import argparse
 import subprocess
 import ConfigParser
 
-# import the rpm parsing stuff
-import rpm
-
 from urllib2 import HTTPError
 
-# koji can replace rpm above and do package building
 import koji
 import xmlrpclib
 
@@ -272,6 +270,7 @@ class PySkein:
         """
 
         self.logger.info("== Querying srpm ==")
+        print "Querying srpm"
         ts = rpm.ts()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
     
@@ -316,6 +315,7 @@ class PySkein:
 
         # rpm.ts is an alias for rpm.TransactionSet
         self.logger.info("== Installing srpm ==")
+        print "Installing srpm"
     
         self._makedir(u"%s/%s" % (self.cfgs['skein']['install_root'], self.rpminfo['name']))
     
@@ -331,16 +331,20 @@ class PySkein:
         """
 
         self.logger.info("== Copying sources ==")
+        print "Copying sources"
 
         sources_path = "%s/%s%s/rpmbuild/SOURCES" % (self.cfgs['skein']['install_root'], self.rpminfo['name'], self.cfgs['skein']['home'])
-        spec_path = "%s/%s%s/rpmbuild/SPECS/%s.spec" % (self.cfgs['skein']['install_root'], self.rpminfo['name'],
-                self.cfgs['skein']['home'], self.rpminfo['name'])
+        spec_path = "%s/%s%s/rpmbuild/SPECS/*.spec" % (self.cfgs['skein']['install_root'], self.rpminfo['name'], self.cfgs['skein']['home'])
 
         source_exts = self.cfgs['skein']['source_exts'].split(',')
 
         # copy the spec file
-        self.logger.info("  copying '%s.spec' to '%s'" % (self.rpminfo['name'], git_dest))
-        shutil.copy2(spec_path, git_dest)
+
+        files = glob.glob(spec_path)
+
+        for f in files:
+            self.logger.info("  copying '%s' to '%s'" % (os.path.basename(f), git_dest))
+            shutil.copy2(f, git_dest)
 
         # copy the source files
         for source in self.rpminfo['sources']:
@@ -367,6 +371,7 @@ class PySkein:
         """
 
         self.logger.info("== Generating sha256sum for sources ==")
+        print "Generating sha256sum for sources"
 
         source_exts = self.cfgs['skein']['source_exts'].split(',')
         sfile = open(u"%s/sources" % git_dest, 'w+')
@@ -388,6 +393,7 @@ class PySkein:
         :param str name: name of package/repo
         """
         self.logger.info("== Creating local git repository at '%s' ==" % repo_dir)
+        print "Creating local git repository at '%s'" % repo_dir
 
         self._init_git_remote()
         scm_url = self.gitremote.get_scm_url(name)
@@ -460,6 +466,8 @@ class PySkein:
         for src in os.listdir(os.path.expanduser(source_dir)):
             if src.rsplit('.')[-1] in source_exts:
                 self.logger.info("  uploading '%s/%s' to '%s'" % (source_dir, src, lookaside_host))
+                print "uploading '%s' to '%s'" % (src, lookaside_host)
+
                 args = ["/usr/bin/rsync", "--progress", "-loDtRz", "-e", "ssh", "%s" % src, "%s@%s:%s/%s/" % ( self.cfgs['lookaside']['user'], lookaside_host, self.cfgs['lookaside']['remote_dir'], name)]
                 p = subprocess.call(args, cwd="%s" % (source_dir), stdout = subprocess.PIPE)
 
@@ -542,7 +550,8 @@ class PySkein:
             self._commit(message)
 
         try:
-            self.logger.debug("   Pushing '%s' to remote '%s'" % (self.repo, self.repo.remote()))
+            self.logger.info("   Pushing '%s' to remote '%s'" % (self.repo, self.repo.remote()))
+            print "Pushing local git repo '%s' to remote '%s'" % (self.repo.working_dir, self.repo.remotes['origin'].url)
             self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
         except IndexError, e:
             print "--- Push failed with error: %s ---" % e
@@ -635,6 +644,8 @@ class PySkein:
 
     def _create_lookaside_dir(self, name):
         self.logger.info("== Creating project dir on lookaside cache ==")
+        print "Creating project dir on lookaside cache"
+
         lookaside_dir = "%s/%s" % (self.cfgs['lookaside']['remote_dir'], name)
         lookaside_host = self.cfgs['lookaside']['host']
         lookaside_user = self.cfgs['lookaside']['grant_user']
@@ -646,6 +657,9 @@ class PySkein:
 
         if not tag:
             tag = self.cfgs['koji']['latest_tag']
+
+        self.logger.info("  Requesting remote repo for '%s'" % name)
+        print "Requesting remote repo for '%s'" % name
 
         self.gitremote.create_remote_repo(name, summary, url)
         self.gitremote.create_team("%s_%s" % (self.cfgs['skein']['team_prefix'], name), 'admin', gitowner, [name])
@@ -671,6 +685,7 @@ class PySkein:
         name = args.name
 
         self.logger.info("== Gathering repo information for '%s'" % name)
+        print "Gathering repo information for '%s'" % name
 
         self._init_git_remote()
         repo_info = self.gitremote.repo_info(name)
@@ -802,6 +817,7 @@ class PySkein:
 
             for srpm in srpms:
                 self.logger.info("== Extracting %s ==" % (srpm))
+                print "Extracting %s" % (srpm)
                 self._set_srpm_details(u"%s" % (srpm))
                 self._install_srpm(u"%s" % (srpm))
 
@@ -869,6 +885,9 @@ class PySkein:
         if args.config:
             kojiconfig = args.config
 
+        self.logger.info("== Attempting to build '%s' for target '%s' ==" % (args.name, args.target))
+        print "Attempting to build '%s' for target '%s'" % (args.name, args.target)
+
         self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
         build_target = self.kojisession.getBuildTarget(args.target)
 
@@ -908,8 +927,10 @@ class PySkein:
 
         for srpm in srpms:
             self._set_srpm_details(u"%s" % (srpm))
-            print "== Deps for %s ==" % (srpm)
+
             self.logger.info("== Getting deps for %s==" % (srpm))
+            print "Getting dependencies for %s" % (srpm)
+
             for br in self.buildrequires:
                 self.logger.info("  %s" % br)
                 print "  %s" % br
