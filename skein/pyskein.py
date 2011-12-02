@@ -534,8 +534,8 @@ class PySkein:
 
         self.logger.info("== Pushing git repo ==")
 
-        self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
         proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
+        self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
 
         if self.repo.is_dirty() or self.repo.untracked_files:
             self.logger.debug("   repo '%s' has been a DIRTY girl!" % self.repo)
@@ -811,7 +811,7 @@ class PySkein:
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']))
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
 
-                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), self.rpminfo['name'])
+#                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), self.rpminfo['name'])
 
                 # copy sources, both archives and patches. Archives go to lookaside_dir, patches and other sources go to git_dir
                 src_dest = "%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir'])
@@ -845,7 +845,7 @@ class PySkein:
         name = args.name
         self._upload_source(name)
 
-    def do_import(self, args):
+    def do_import_pkg(self, args):
         """Import a package. Performs extract, push and upload (in that order)
 
         :param str args.path: path to source rpm
@@ -855,8 +855,11 @@ class PySkein:
         self.do_extract_pkg(args)
 
         name = self.rpminfo['name']
+        message = None
+        if args.message:
+            message = args.message
 
-        self._push_to_remote(name)
+        self._push_to_remote(name, message)
         self._upload_source(name)
 
 
@@ -911,56 +914,6 @@ class PySkein:
                 self.logger.info("  %s" % br)
                 print "  %s" % br
             print ""
-
-    def do_import(self, args):
-
-#        path = args.path
-#        print "PATH: %s" % args.path
-#        print "
-        for path in args.path:
-            srpms = self._get_srpm_list(path)
-        
-            for srpm in srpms:
-                print "Importing %s" % (srpm)
-                self.logger.info("== Importing %s==" % (srpm))
-                self._set_srpm_details(u"%s" % (srpm))
-                self._install_srpm(u"%s" % (srpm))
-    
-                # make sure the github repo exists
-                self._create_remote_repo()
-                time.sleep(1)
-    
-                spec_src = u"%s/%s%s/%s/%s.spec" % (sks.install_root, self.name, sks.home, 'rpmbuild/SPECS', self.name)
-                spec_dest = u"%s/%s" % (sks.base_dir, self.name)
-                sources_src = u"%s/%s%s/%s" % (sks.install_root, self.name, sks.home, 'rpmbuild/SOURCES')
-                sources_dest = u"%s/%s" % (sks.lookaside_dir, self.name)
-    
-#    #            print "spec_src: %s" % spec_src
-#    #            print "spec_dest: %s" % spec_dest
-#    #            print "sources_src: %s" % sources_src
-#    #            print "sources_dest: %s" % sources_dest
-#
-#                self._makedir(spec_dest)
-#                self._clone_git_repo(spec_dest, u"%s/%s.git" %(sks.git_remote, self.name))
-#
-#                self._copy_spec(spec_src, spec_dest)
-#                self._copy_patches(sources_src, spec_dest)
-#
-#                self._makedir(sources_dest)
-#                self._copy_sources(sources_src, sources_dest)
-#                self._generate_sha256(sources_dest, spec_dest)
-#
-#                self._update_gitignore(spec_dest)
-#
-#                self._do_makefile()
-#                if not args.no_upload:
-#                    self._upload_sources(sources_dest)
-#
-#                if not args.no_push:
-#                    self._commit_and_push()
-#
-#                print "Import %s complete\n" % (self.name)
-#                self.logger.info("== Import of '%s' complete ==\n" % (srpm))
 
 def main():
 
