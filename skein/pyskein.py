@@ -462,6 +462,7 @@ class PySkein:
         source_exts = self.cfgs['skein']['source_exts'].split(',')
 
         os.chdir(source_dir)
+        uploaded = False
 
         for src in os.listdir(os.path.expanduser(source_dir)):
             if src.rsplit('.')[-1] in source_exts:
@@ -470,6 +471,11 @@ class PySkein:
 
                 args = ["/usr/bin/rsync", "--progress", "-loDtRz", "-e", "ssh", "%s" % src, "%s@%s:%s/%s/" % ( self.cfgs['lookaside']['user'], lookaside_host, self.cfgs['lookaside']['remote_dir'], name)]
                 p = subprocess.call(args, cwd="%s" % (source_dir), stdout = subprocess.PIPE)
+                uploaded = True
+
+        if not uploaded:
+            self.logger.info("  nothing to upload for '%s'" % name)
+            print "nothing to upload for '%s'" % name
 
     def _commit(self, message=None):
         """Commit is only called in two cases, if there are uncommitted changes
