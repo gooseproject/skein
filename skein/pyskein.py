@@ -700,7 +700,7 @@ class PySkein:
         print "-------------------------"
         for k in repo_info.iterkeys():
             if k != 'commits':
-                print "%s\t\t\t%s" % (k.ljust(15), repo_info[k])
+                print "%s\t\t\t%s" % (k.ljust(15), unicode(repo_info[k]).encode('utf-8'))
 
         if args.commits:
             print "\n-- Commit Detail -- (All times are PST)"
