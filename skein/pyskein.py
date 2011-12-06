@@ -881,8 +881,8 @@ class PySkein:
         if args.message:
             message = args.message
 
-        self._push_to_remote(name, message)
         self._upload_source(name)
+        self._push_to_remote(name, message)
 
 
     def do_build_pkg(self, args):
