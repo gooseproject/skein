@@ -9,6 +9,8 @@ install/
 .*.sw[po]
 *.py[co]
 
+skein.cfg.*
+
 # ignore files with sensitive data
 gh_settings.py
 github_settings.py

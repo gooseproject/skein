@@ -34,4 +34,8 @@ logformat="%(levelname)s %(asctime)s %(message)s"
 logdateformat="%m/%d/%Y %I:%M:%S %p"
 loglevel=logging.DEBUG
 
+#default editor
+editor=u"/usr/bin/vim"
 
+# provide help to user 
+initial_message = "<Explain why the package is needed>\n\nPackage Description: <run rpm -qip /path/to/srpm and replace this with the Summary value.\nUpstream URL: <run rpm -qip /path/to/srpm and replace this with the URL value.\nSRPM URL: <reference to upstream url for future reference as to where the sources originated>"

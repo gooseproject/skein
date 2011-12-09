@@ -1,0 +1,50 @@
+# sync files to lookaside cache
+# Author: Clint Savage <herlo1@gmail.com>
+#
+# should be copied to an executable directory
+# on the machine hosting the lookaside cache.
+# 
+# authorized_keys file for appropriate user should
+# include this file after the command= component as such:
+#
+# command="/usr/local/bin/sync_files ${SSH_ORIGINAL_COMMAND:-}",no-pty,no-agent-forwarding,no-port-forwarding ssh-rsa AAAAB...
+#
+# sync_files is called by 'skein upload' and 'skein import'
+
+#!/bin/bash
+
+package=$(echo ${SSH_ORIGINAL_COMMAND} | cut -d':' -f1)
+source=$(echo ${SSH_ORIGINAL_COMMAND} | cut -d':' -f2)
+time=$(date +"%F %H:%M:%S")
+
+case "${SSH_ORIGINAL_COMMAND}" in
+    *\&*)
+        echo "Rejected"
+    ;;
+    *\(*)
+        echo "Rejected"
+    ;;
+    *\{*)
+        echo "Rejected"
+    ;;
+    *\;*)
+        echo "Rejected"
+    ;;
+    *\<*)
+        echo "Rejected"
+    ;;
+    *\`*)
+        echo "Rejected"
+    ;;
+    *\|*)
+        echo "Rejected"
+    ;;
+    rsync\ --server*)
+        echo "${time} :: UPLOADING: ${source} to ${package}" >> /tmp/skein_upload.log
+        ${SSH_ORIGINAL_COMMAND}
+    ;;
+    *)
+        echo "Rejected"
+    ;;
+esac 
+
