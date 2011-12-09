@@ -462,6 +462,7 @@ class PySkein:
         source_exts = self.cfgs['skein']['source_exts'].split(',')
 
         os.chdir(source_dir)
+        uploaded = False
 
         for src in os.listdir(os.path.expanduser(source_dir)):
             if src.rsplit('.')[-1] in source_exts:
@@ -470,6 +471,11 @@ class PySkein:
 
                 args = ["/usr/bin/rsync", "--progress", "-loDtRz", "-e", "ssh", "%s" % src, "%s@%s:%s/%s/" % ( self.cfgs['lookaside']['user'], lookaside_host, self.cfgs['lookaside']['remote_dir'], name)]
                 p = subprocess.call(args, cwd="%s" % (source_dir), stdout = subprocess.PIPE)
+                uploaded = True
+
+        if not uploaded:
+            self.logger.info("  nothing to upload for '%s'" % name)
+            print "nothing to upload for '%s'" % name
 
     def _commit(self, message=None):
         """Commit is only called in two cases, if there are uncommitted changes
@@ -694,7 +700,7 @@ class PySkein:
         print "-------------------------"
         for k in repo_info.iterkeys():
             if k != 'commits':
-                print "%s\t\t\t%s" % (k.ljust(15), repo_info[k])
+                print "%s\t\t\t%s" % (k.ljust(15), unicode(repo_info[k]).encode('utf-8'))
 
         if args.commits:
             print "\n-- Commit Detail -- (All times are PST)"
@@ -875,8 +881,8 @@ class PySkein:
         if args.message:
             message = args.message
 
-        self._push_to_remote(name, message)
         self._upload_source(name)
+        self._push_to_remote(name, message)
 
 
     def do_build_pkg(self, args):

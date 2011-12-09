@@ -14,6 +14,7 @@ Skein will not function without the following dependencies.
 
 * git-python = 0.2x (http://gitorious.org/projects/git-python/)
 * rpm-python >= 4.9.0 (http://www.rpm.org/)
+* python-argparse (http://code.google.com/p/argparse/)
 * github2 (http://packages.python.org/github2/)
 * koji >= 1.6.0 (http://packages.python.org/github2/)
 
