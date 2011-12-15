@@ -10,7 +10,7 @@ import subprocess
 # import the rpm parsing stuff
 import rpm
 
-from skein.pyskein import *
+from skein.pyskein import PySkein,SkeinError
 
 debug = True
 
