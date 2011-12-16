@@ -181,7 +181,7 @@ class GithubRemote(GitRemote):
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
-            raise SkeinError("Request %d doesn't exist for %s" % (request_id, self.cfgs['github']['issue_project']))
+            raise SkeinError("Request %s doesn't exist for %s" % (request_id, self.cfgs['github']['issue_project']))
 
     def create_remote_repo(self, name, summary, url):
         self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, name))
