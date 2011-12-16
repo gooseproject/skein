@@ -916,7 +916,7 @@ class PySkein:
         opts = {}
         priority = 5
 
-        task_id = self.kojisession.build('git://github.com/gooselinux/%s.git#HEAD' % args.name, args.target, opts, priority=priority)
+        task_id = self.kojisession.build('%s/%s.git#HEAD' % (self.cfgs['github']['anon_base'], args.name), args.target, opts, priority=priority)
 
         #print "Task-ID: %s" % task_id
         print "Task URL: %s/%s?taskID=%s" % ('http://koji.gooselinux.org/koji', 'taskinfo', task_id) 
@@ -946,18 +946,22 @@ def main():
 
     ps = PySkein()
 
+    ps._init_git_remote()
+    name = 'gtk+extras'
+    scm_url = ps.gitremote.get_scm_url(name)
+    print "scm_url: %s" % scm_url
 
-    p = argparse.ArgumentParser(
-            description='''Imports all src.rpms into git and lookaside cache''',
-        )
-
-
-
-    p.add_argument("name", help=u"directory to create in lookaside")
-    p.set_defaults(func=ps.create_lookaside)
-
-    args = p.parse_args()
-    args.func(args)
+#    p = argparse.ArgumentParser(
+#            description='''Imports all src.rpms into git and lookaside cache''',
+#        )
+#
+#
+#
+#    p.add_argument("name", help=u"directory to create in lookaside")
+#    p.set_defaults(func=ps.create_lookaside)
+#
+#    args = p.parse_args()
+#    args.func(args)
 
 
 if __name__ == "__main__":

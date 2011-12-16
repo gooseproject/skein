@@ -181,13 +181,15 @@ class GithubRemote(GitRemote):
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
-            raise SkeinError("Request %d doesn't exist for %s" % (request_id, self.cfgs['github']['issue_project']))
+            raise SkeinError("Request %s doesn't exist for %s" % (request_id, self.cfgs['github']['issue_project']))
 
     def create_remote_repo(self, name, summary, url):
         self.logger.info("== Creating github repository '%s/%s' ==" % (self.org, name))
 
         try:
             repo = self.github.repos.create(u"%s/%s" % (self.org, name.encode('utf-8')), summary.encode('utf-8'), url.encode('utf-8'))
+            self.logger.info("Remote '%s/%s' successfully created" % (self.org, name))
+            print "Remote '%s/%s' successfully created" % (self.org, name)
         except (KeyError, RuntimeError) as e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
@@ -274,6 +276,12 @@ class GithubRemote(GitRemote):
             print "Ticket id '%s' could not be closed automatically, please close by hand" % request_id
 
     def get_scm_url(self, name):
+        # github likes to change '+' chars to '-' chars.
+        replace_chars = self.cfgs['github']['replace_chars']
+        for chars in replace_chars.split():
+            r, w = chars.split(':')
+            name = name.replace(r, w)
+
         return "%s/%s.git" % (self.cfgs['github']['remote_base'], name)
 
     def repo_info(self, name, show_commits=True, branch='master', page=1):
