@@ -946,18 +946,22 @@ def main():
 
     ps = PySkein()
 
+    ps._init_git_remote()
+    name = 'gtk+extras'
+    scm_url = ps.gitremote.get_scm_url(name)
+    print "scm_url: %s" % scm_url
 
-    p = argparse.ArgumentParser(
-            description='''Imports all src.rpms into git and lookaside cache''',
-        )
-
-
-
-    p.add_argument("name", help=u"directory to create in lookaside")
-    p.set_defaults(func=ps.create_lookaside)
-
-    args = p.parse_args()
-    args.func(args)
+#    p = argparse.ArgumentParser(
+#            description='''Imports all src.rpms into git and lookaside cache''',
+#        )
+#
+#
+#
+#    p.add_argument("name", help=u"directory to create in lookaside")
+#    p.set_defaults(func=ps.create_lookaside)
+#
+#    args = p.parse_args()
+#    args.func(args)
 
 
 if __name__ == "__main__":

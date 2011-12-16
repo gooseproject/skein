@@ -274,6 +274,12 @@ class GithubRemote(GitRemote):
             print "Ticket id '%s' could not be closed automatically, please close by hand" % request_id
 
     def get_scm_url(self, name):
+        # github likes to change '+' chars to '-' chars.
+        replace_chars = self.cfgs['github']['replace_chars']
+        for chars in replace_chars.split():
+            r, w = chars.split(':')
+            name = name.replace(r, w)
+
         return "%s/%s.git" % (self.cfgs['github']['remote_base'], name)
 
     def repo_info(self, name, show_commits=True, branch='master', page=1):
