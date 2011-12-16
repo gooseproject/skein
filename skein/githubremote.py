@@ -188,6 +188,8 @@ class GithubRemote(GitRemote):
 
         try:
             repo = self.github.repos.create(u"%s/%s" % (self.org, name.encode('utf-8')), summary.encode('utf-8'), url.encode('utf-8'))
+            self.logger.info("Remote '%s/%s' successfully created" % (self.org, name))
+            print "Remote '%s/%s' successfully created" % (self.org, name)
         except (KeyError, RuntimeError) as e:
             # assume repo already exists if this is thrown
             self.logger.debug("  github error: %s" %e)
