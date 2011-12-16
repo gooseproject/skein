@@ -916,7 +916,7 @@ class PySkein:
         opts = {}
         priority = 5
 
-        task_id = self.kojisession.build('git://github.com/gooselinux/%s.git#HEAD' % args.name, args.target, opts, priority=priority)
+        task_id = self.kojisession.build('%s/%s.git#HEAD' % (self.cfgs['github']['anon_base'], args.name), args.target, opts, priority=priority)
 
         #print "Task-ID: %s" % task_id
         print "Task URL: %s/%s?taskID=%s" % ('http://koji.gooselinux.org/koji', 'taskinfo', task_id) 
