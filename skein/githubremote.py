@@ -84,6 +84,8 @@ class GithubRemote(GitRemote):
 
         if valid.lower() == 'y':
             initial_message = "%s\n====\n%s\n%s\n%s\n====" % (self.cfgs['github']['request_reason'], self.cfgs['github']['request_summary'], self.cfgs['github']['request_url'], self.cfgs['github']['branches_default'])
+        else:
+            raise SkeinError('Request canceled by user')
 
         return initial_message % (summary, url)
 
