@@ -477,7 +477,7 @@ class PySkein:
             self.logger.info("  nothing to upload for '%s'" % name)
             print "nothing to upload for '%s'" % name
 
-    def _commit(self, message=None):
+    def _commit(self, reason=None):
         """Commit is only called in two cases, if there are uncommitted changes
         or if there are newly added (aka untracked) files which need to be added to
         the local repository prior to being pushed up to the remote repository.
@@ -488,31 +488,30 @@ class PySkein:
 
         self.logger.info("||== Committing git repo ==||")
 
-        if not message:
+        reason = None
+        editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
 
-            editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
+        tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
 
-            tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
+        initial_message = self.cfgs['git']['commit_message']
 
-            tmp_file.write(self.cfgs['git']['commit_message'])
-            tmp_file.flush()
+        tmp_file.write(initial_message)
+        tmp_file.flush()
 
-            cmd = [editor, tmp_file.name]
+        cmd = [editor, tmp_file.name]
 
-            try:
-                p = subprocess.check_call(cmd)
-                f = open(tmp_file.name, 'r')
-                message = f.read()
+        try:
+            p = subprocess.check_call(cmd)
+            f = open(tmp_file.name, 'r')
+            reason = f.read()
 
-#                print "r: %s" % message
-#                print "i: %s" % self.cfgs['github']['initial_message']
+            if not reason:
+                raise SkeinError("Description required.")
+            elif reason == initial_message:
+                raise SkeinError("Description has not changed.")
 
-                if not message:
-                    raise SkeinError("Description required.")
-
-            except subprocess.CalledProcessError:
-                raise SkeinError("Action cancelled by user.")
-
+        except subprocess.CalledProcessError:
+            raise SkeinError("Action cancelled by user.")
 
         index = self.repo.index
 
@@ -538,7 +537,7 @@ class PySkein:
         if index_changed:
             self.logger.info("  committing index")
             # commit files added to the index
-            index.commit(message)
+            index.commit(reason)
 
     def _push_to_remote(self, name, message=None):
         """Push any/all changes to remote repository
@@ -916,7 +915,7 @@ class PySkein:
         opts = {}
         priority = 5
 
-        task_id = self.kojisession.build('git://github.com/gooselinux/%s.git#HEAD' % args.name, args.target, opts, priority=priority)
+        task_id = self.kojisession.build('%s/%s.git#HEAD' % (self.cfgs['github']['anon_base'], args.name), args.target, opts, priority=priority)
 
         #print "Task-ID: %s" % task_id
         print "Task URL: %s/%s?taskID=%s" % ('http://koji.gooselinux.org/koji', 'taskinfo', task_id) 
@@ -946,18 +945,22 @@ def main():
 
     ps = PySkein()
 
+    ps._init_git_remote()
+    name = 'gtk+extras'
+    scm_url = ps.gitremote.get_scm_url(name)
+    print "scm_url: %s" % scm_url
 
-    p = argparse.ArgumentParser(
-            description='''Imports all src.rpms into git and lookaside cache''',
-        )
-
-
-
-    p.add_argument("name", help=u"directory to create in lookaside")
-    p.set_defaults(func=ps.create_lookaside)
-
-    args = p.parse_args()
-    args.func(args)
+#    p = argparse.ArgumentParser(
+#            description='''Imports all src.rpms into git and lookaside cache''',
+#        )
+#
+#
+#
+#    p.add_argument("name", help=u"directory to create in lookaside")
+#    p.set_defaults(func=ps.create_lookaside)
+#
+#    args = p.parse_args()
+#    args.func(args)
 
 
 if __name__ == "__main__":
