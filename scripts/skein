@@ -70,7 +70,7 @@ def main():
 
     p_import = sp.add_parser("import", help=u"import srpm(s). Performs extract, push and upload.")
     p_import.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
-    p_import.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
+    p_import.add_argument("-m", "--message", metavar="message", help="optional commit message.")
     p_import.set_defaults(func=ps.do_import_pkg)
 
     p_revoke = sp.add_parser("revoke", help=u"revoke a repo create request")

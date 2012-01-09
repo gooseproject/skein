@@ -488,30 +488,30 @@ class PySkein:
 
         self.logger.info("||== Committing git repo ==||")
 
-        reason = None
-        editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
+        if not reason:
+            editor = os.environ.get('EDITOR') if os.environ.get('EDITOR') else self.cfgs['skein']['editor']
 
-        tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
+            tmp_file = tempfile.NamedTemporaryFile(suffix=".tmp")
 
-        initial_message = self.cfgs['git']['commit_message']
+            initial_message = self.cfgs['git']['commit_message']
 
-        tmp_file.write(initial_message)
-        tmp_file.flush()
+            tmp_file.write(initial_message)
+            tmp_file.flush()
 
-        cmd = [editor, tmp_file.name]
+            cmd = [editor, tmp_file.name]
 
-        try:
-            p = subprocess.check_call(cmd)
-            f = open(tmp_file.name, 'r')
-            reason = f.read()
+            try:
+                p = subprocess.check_call(cmd)
+                f = open(tmp_file.name, 'r')
+                reason = f.read()
 
-            if not reason:
-                raise SkeinError("Description required.")
-            elif reason == initial_message:
-                raise SkeinError("Description has not changed.")
+                if not reason:
+                    raise SkeinError("Description required.")
+                elif reason == initial_message:
+                    raise SkeinError("Description has not changed.")
 
-        except subprocess.CalledProcessError:
-            raise SkeinError("Action cancelled by user.")
+            except subprocess.CalledProcessError:
+                raise SkeinError("Action cancelled by user.")
 
         index = self.repo.index
 
