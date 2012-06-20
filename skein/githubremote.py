@@ -133,6 +133,7 @@ class GithubRemote(GitRemote):
         except RuntimeError, e:
             # assume repo already exists if this is thrown
             self.logger.debug("  error: %s" %e)
+            pass
 
     def search_repo_requests(self, state='open'):
         self.logger.info("== Searching '%s' github repository requests from '%s' ==" % (state, self.cfgs['github']['issue_project']))
