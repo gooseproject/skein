@@ -138,7 +138,7 @@ class PySkein:
     Support class for skein. Does single and mass imports, upload, verify, sources, 
     generate makefiles and more for the goose linux rebuilds.
     """
-    
+
     def __init__(self):
         """Constructor for skein, will create self.cfgs and self.logger
         """
@@ -273,7 +273,7 @@ class PySkein:
         print "Querying srpm"
         ts = rpm.ts()
         ts.setVSFlags(rpm._RPMVSF_NOSIGNATURES)
-    
+
         fdno = open(u"%s" % srpm, 'r')
         try:
             hdr = ts.hdrFromFdno(fdno)
@@ -281,7 +281,7 @@ class PySkein:
             if str(e) == "public key not available":
                 print str(e)
         fdno.close()
-        
+
         self.rpminfo = {}
         self.logger.info("  Setting srpm name ==")
         self.rpminfo['name'] = hdr[rpm.RPMTAG_NAME]
@@ -290,7 +290,18 @@ class PySkein:
         self.logger.info("  Setting srpm release ==")
         self.rpminfo['release'] = hdr[rpm.RPMTAG_RELEASE]
         self.logger.info("  Setting srpm sources ==")
-        self.rpminfo['sources'] = hdr[rpm.RPMTAG_SOURCE]
+
+        # some sources use %{name} and %{version}
+        srcs = hdr[rpm.RPMTAG_SOURCE]
+        sources = []
+
+        for src in srcs:
+            source = src.replace('%{name}', self.rpminfo['name'])
+            source = source.replace('%{version}', self.rpminfo['version'])
+            sources.append(source)
+
+        self.rpminfo['sources'] = sources
+
         self.logger.info("  Setting srpm patches ==")
         patches = []
         for patch in hdr[rpm.RPMTAG_PATCH]:
@@ -316,9 +327,9 @@ class PySkein:
         # rpm.ts is an alias for rpm.TransactionSet
         self.logger.info("== Installing srpm ==")
         print "Installing srpm"
-    
+
         self._makedir(u"%s/%s" % (self.cfgs['skein']['install_root'], self.rpminfo['name']))
-    
+
         self.logger.info("  installing %s into %s/%s" % (srpm, self.cfgs['skein']['install_root'], self.rpminfo['name']))
         args = ["/bin/rpm", "-i", "--root=%s/%s" % (self.cfgs['skein']['install_root'], self.rpminfo['name']), srpm]
         p = subprocess.call(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE )
@@ -346,7 +357,6 @@ class PySkein:
             self.logger.info("  copying '%s' to '%s'" % (os.path.basename(f), git_dest))
             shutil.copy2(f, git_dest)
 
-        # copy the source files
         for source in self.rpminfo['sources']:
             src = "%s/%s" % (sources_path, source)
 
@@ -361,7 +371,7 @@ class PySkein:
         for source in self.rpminfo['patches']:
             self.logger.info("  copying '%s' to '%s'" % (source, git_dest))
             shutil.copy2("%s/%s" % (sources_path, source), git_dest)
-    
+
     # this method assumes the sources are new and overwrites the 'sources' file in the git repository
     def _generate_sha256(self, sources_dest, git_dest):
         """Generate a sha256sum for each legitimate source file
@@ -417,7 +427,7 @@ class PySkein:
 
     # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
     def _update_gitignore(self, path):
- 
+
         self.logger.info("  Updating .gitignore with sources")
         gitignore_file = open("%s/%s" % (path, '.gitignore'), 'w')
         source_exts = self.cfgs['skein']['source_exts'].split(',')
