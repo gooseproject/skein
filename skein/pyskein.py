@@ -418,11 +418,12 @@ class PySkein:
             result = git.Git.execute(gitrepo, cmd)
             self.repo = git.Repo(repo_dir)
         try:
+            print("  Setting origin to '%s'" % scm_url)
             self.logger.info("  Setting origin to '%s'" % scm_url)
             self.repo.create_remote('origin', scm_url)
         except (AssertionError, GitCommandError), e:
-            print "repo path '%s' already exists, skipping" % repo_dir
-            self.logger.info("repo path '%s' already exists, skipping" % repo_dir)
+            print "repo remote 'origin' already exists, skipping"
+            self.logger.info("repo remote 'origin' already exists, skipping")
             self.logger.debug("--- Exception thrown %s" % e)
 
     # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
@@ -549,7 +550,37 @@ class PySkein:
             # commit files added to the index
             index.commit(reason)
 
-    def _push_to_remote(self, name, message=None):
+    def do_commit(self, name, branch, message=None):
+        """Commit changes to a branch. Only branches in skein.cfg will be
+        allowed.
+
+        :param str name: repository name (same as package)
+        :param str branch: branch (aka GoOSe version) (eg. gl6.1-up)
+        """
+
+        self.logger.info("== Branching to {0} for {1} ==".format(branch, name))
+
+        proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
+        self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
+
+        if not branch in self.repo.branches:
+            print("   checking out branch 'master'")
+            self.logger.debug("   checking out branch 'master'")
+            self.repo.heads.master.checkout()
+        else:
+            print("   checking out branch '{0}'".format(branch))
+            self.logger.debug("   checking out branch '{0}'".format(branch))
+            self.repo.heads[branch].checkout()
+
+        if self.repo.is_dirty() or self.repo.untracked_files:
+            self.logger.debug("   repo '{0}' is SO dirty!".format(self.repo))
+            self._commit(message)
+
+            print 'creating branch {0}'.format(branch)
+            #commit the code first
+            self.repo.create_head(branch)
+
+    def _push_to_remote(self, name):
         """Push any/all changes to remote repository
 
         :param str name: repository name (same as package)
@@ -559,10 +590,6 @@ class PySkein:
 
         proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
         self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
-
-        if self.repo.is_dirty() or self.repo.untracked_files:
-            self.logger.debug("   repo '%s' has been a DIRTY girl!" % self.repo)
-            self._commit(message)
 
         try:
             self.logger.info("   Pushing '%s' to remote '%s'" % (self.repo, self.repo.remote()))
@@ -819,30 +846,38 @@ class PySkein:
             self.gitremote.close_repo_request(args.id, name)
 
     def do_extract_pkg(self, args):
-        """Extract a package. Copies the spec, sources and patches appropriately 
-        in preparation for a commit and push (skein push) and upload to the lookaside 
-        cache (skein upload)
+        """Extract a package. Copies the spec, sources and patches
+        appropriately in preparation for a push (skein push) and upload
+        to the lookaside cache (skein upload)
 
         :param str args.path: path to source rpm
         :param str args.message (optional): commit message
         """
 
+        message = None
+        if args.message:
+            message = args.message
+
         for p in args.path:
             srpms = self._get_srpm_list(p)
 
             for srpm in srpms:
+
+                # ensure branch exists, if not create it and switch
+
                 self.logger.info("== Extracting %s ==" % (srpm))
-                print "Extracting %s" % (srpm)
+                # print "Extracting %s" % (srpm)
                 self._set_srpm_details(u"%s" % (srpm))
+
                 self._install_srpm(u"%s" % (srpm))
 
                 proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], self.rpminfo['name'])
-#                print "spec_dest: %s" % proj_dir
+                #print "spec_dest: %s" % proj_dir
 
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']))
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
 
-#                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), self.rpminfo['name'])
+                #self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), self.rpminfo['name'])
 
                 # copy sources, both archives and patches. Archives go to lookaside_dir, patches and other sources go to git_dir
                 src_dest = "%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir'])
@@ -853,19 +888,17 @@ class PySkein:
                 self._update_gitignore(git_dest)
                 self._do_makefile(git_dest)
 
+                self.do_commit(self.rpminfo['name'], args.branch, args.message)
+
     def do_push(self, args):
         """Push to remote git repository
 
         :param str args.name: repository name
-        :param str args.message (optional): commit message
         """
 
         name = args.name
-        message = None
-        if args.message:
-            message = args.message
 
-        self._push_to_remote(name, message)
+        self._push_to_remote(name)
 
     def do_upload(self, args):
         """Upload source(s) to lookaside cache

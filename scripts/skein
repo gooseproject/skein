@@ -55,13 +55,14 @@ def main():
     p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
     p_grant.set_defaults(func=ps.grant_request)
 
-    p_extract = sp.add_parser("extract", help=u"extract srpm(s)")
+    p_extract = sp.add_parser("extract", help=u"extract srpm(s) and commit to correct branch(es)")
     p_extract.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
+    p_extract.add_argument("branch", help=u"Branch in which to extract the SRPM, create if necessary")
+    p_extract.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
     p_extract.set_defaults(func=ps.do_extract_pkg)
 
     p_push = sp.add_parser("push", help="commit and push existing git repo to remote")
     p_push.add_argument("name", help="package/repo name to push. Expects to have existing uncommitted files.")
-    p_push.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
     p_push.set_defaults(func=ps.do_push)
 
     p_upload = sp.add_parser("upload", help="upload source archives to lookaside")
