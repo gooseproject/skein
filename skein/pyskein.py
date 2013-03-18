@@ -580,7 +580,7 @@ class PySkein:
             #commit the code first
             self.repo.create_head(branch)
 
-    def _push_to_remote(self, name):
+    def _push_to_remote(self, name, branches=['master']):
         """Push any/all changes to remote repository
 
         :param str name: repository name (same as package)
@@ -591,22 +591,33 @@ class PySkein:
         proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
         self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
 
-        try:
-            self.logger.info("   Pushing '%s' to remote '%s'" % (self.repo, self.repo.remote()))
-            print "Pushing local git repo '%s' to remote '%s'" % (self.repo.working_dir, self.repo.remotes['origin'].url)
-            self.repo.remotes['origin'].push('refs/heads/master:refs/heads/master')
-        except IndexError, e:
-            print "--- Push failed with error: %s ---" % e
-            self.logger.debug("--- Push failed with error: %s" % e)
-            raise
-        except AssertionError, e:
-            # odds are that unless the exception 'e' has a value
-            # the assertionerror is wrong.  Usually, this is because
-            # gitPython shows a warning, not an actual error
-            if e and len(str(e)) != 0:
+        if 'all' in branches:
+            # determine the local branches
+            branches = self.repo.branches
+
+
+        for branch in reversed(branches):
+            try:
+                self.logger.debug("Pushing branch '{0}' on repo '{1}' to remote '{2}'".format(branch, name, self.repo.remotes['origin'].url))
+                print("Pushing branch '{0}' on repo '{1}'".format(branch, name, self.repo.remotes['origin'].url))
+                self.repo.remotes['origin'].push('refs/heads/{0}:refs/heads/{0}'.format(branch))
+            except IndexError, e:
                 print "--- Push failed with error: %s ---" % e
                 self.logger.debug("--- Push failed with error: %s" % e)
-                raise 
+                raise
+            except AssertionError, e:
+                # odds are that unless the exception 'e' has a value
+                # the assertionerror is wrong.  Usually, this is because
+                # gitPython shows a warning, not an actual error
+                if e and len(str(e)) != 0:
+                    print "--- Push failed with error: %s ---" % e
+                    self.logger.debug("--- Push failed with error: %s" % e)
+                    raise
+            except Exception, e:
+                if e and len(str(e)) != 0:
+                    print "Push failed with error: {0}".format(e)
+                    self.logger.debug("--- Push failed with error: {0}".format(e))
+
 
     def _get_srpm_list(self, path):
 
@@ -897,8 +908,19 @@ class PySkein:
         """
 
         name = args.name
+        branches = ['master']
+        if args.branches:
+            if args.nomaster:
+                branches = args.branches
+            else:
+                branches.extend(args.branches)
+        elif args.all_branches:
+            # determine the local branches
+            branches = ['all']
 
-        self._push_to_remote(name)
+        print "branches: {0}".format(branches)
+
+        self._push_to_remote(name, branches)
 
     def do_upload(self, args):
         """Upload source(s) to lookaside cache

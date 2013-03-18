@@ -63,6 +63,9 @@ def main():
 
     p_push = sp.add_parser("push", help="commit and push existing git repo to remote")
     p_push.add_argument("name", help="package/repo name to push. Expects to have existing uncommitted files.")
+    p_push.add_argument("-b", "--branches", metavar='branch', nargs='+', help=u"Which branch(es) to push. Will always push master branch (default).")
+    p_push.add_argument("-a", "--all-branches", action="store_true", help=u"Push all known local branches")
+    p_push.add_argument("-m", "--nomaster", action="store_true", help=u"Used to disable pushing to master (ignored with -a switch)")
     p_push.set_defaults(func=ps.do_push)
 
     p_upload = sp.add_parser("upload", help="upload source archives to lookaside")
