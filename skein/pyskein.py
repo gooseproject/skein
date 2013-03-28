@@ -412,7 +412,7 @@ class PySkein:
             self.repo = git.Repo(repo_dir)
         except NoSuchPathError as e:
             raise SkeinError("Path '%s' does not exist, please run 'skein extract' first" % e)
-        except InvalidGitRepositoryError, e:
+        except InvalidGitRepositoryError as e:
             gitrepo = git.Git(repo_dir)
             cmd = ['git', 'init']
             result = git.Git.execute(gitrepo, cmd)
@@ -563,11 +563,7 @@ class PySkein:
         proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
         self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
 
-        if not branch in self.repo.branches:
-            print("   checking out branch 'master'")
-            self.logger.debug("   checking out branch 'master'")
-            self.repo.heads.master.checkout()
-        else:
+        if branch in self.repo.branches:
             print("   checking out branch '{0}'".format(branch))
             self.logger.debug("   checking out branch '{0}'".format(branch))
             self.repo.heads[branch].checkout()
@@ -576,7 +572,8 @@ class PySkein:
             self.logger.debug("   repo '{0}' is SO dirty!".format(self.repo))
             self._commit(message)
 
-            print 'creating branch {0}'.format(branch)
+            print('creating branch {0}'.format(branch))
+            self.logger.debug('creating branch {0}'.format(branch))
             #commit the code first
             self.repo.create_head(branch)
 
@@ -594,7 +591,6 @@ class PySkein:
         if 'all' in branches:
             # determine the local branches
             branches = self.repo.branches
-
 
         for branch in reversed(branches):
             try:
@@ -617,7 +613,7 @@ class PySkein:
                 if e and len(str(e)) != 0:
                     print "Push failed with error: {0}".format(e)
                     self.logger.debug("--- Push failed with error: {0}".format(e))
-
+                raise
 
     def _get_srpm_list(self, path):
 
@@ -918,7 +914,7 @@ class PySkein:
             # determine the local branches
             branches = ['all']
 
-        print "branches: {0}".format(branches)
+        #print "branches: {0}".format(branches)
 
         self._push_to_remote(name, branches)
 
