@@ -8,6 +8,8 @@ build/
 install/
 .*.sw[po]
 *.py[co]
+.newfile
+.oldfile
 
 skein.cfg.*
 
