@@ -402,8 +402,8 @@ class PySkein:
         :param str repo_dir: full path to existing or potential repo
         :param str name: name of package/repo
         """
-        self.logger.info("== Creating local git repository at '%s' ==" % repo_dir)
-        print "Creating local git repository at '%s'" % repo_dir
+        self.logger.info("== Using local git repository at '%s' ==" % repo_dir)
+        print "Using local git repository at '%s'" % repo_dir
 
         self._init_git_remote()
         scm_url = self.gitremote.get_scm_url(name)
@@ -944,6 +944,17 @@ class PySkein:
         self._upload_source(name)
         self._push_to_remote(name, message)
 
+    def _get_git_hash(self, name, branch):
+
+        proj_dir = "{0}/{1}".format(self.cfgs['skein']['proj_dir'], name)
+        self._init_git_repo("{0}/{1}".format(proj_dir, self.cfgs['skein']['git_dir']), name)
+
+        if branch in self.repo.branches:
+          print("   checking out branch '{0}'".format(branch))
+          self.logger.debug("   checking out branch '{0}'".format(branch))
+          return self.repo.heads[branch].object.hexsha
+        else:
+          raise SkeinError('branch {0} does not exist'.format(branch))
 
     def do_build_pkg(self, args):
 
@@ -956,6 +967,10 @@ class PySkein:
 
         self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
         build_target = self.kojisession.getBuildTarget(args.target)
+
+        git_hash = self._get_git_hash(args.name, args.target)
+
+        #print('git_hash: {0}'.format(git_hash))
 
         #print "Args.Target: %s" % args
         #print "Build Target: %s" % build_target
@@ -976,7 +991,7 @@ class PySkein:
         opts = {}
         priority = 5
 
-        task_id = self.kojisession.build('%s/%s.git#HEAD' % (self.cfgs['github']['anon_base'], args.name), args.target, opts, priority=priority)
+        task_id = self.kojisession.build('{0}/{1}.git#{2}'.format(self.cfgs['github']['anon_base'], args.name, git_hash), args.target, opts, priority=priority)
 
         #print "Task-ID: %s" % task_id
         print "Task URL: %s/%s?taskID=%s" % ('http://koji.gooselinux.org/koji', 'taskinfo', task_id) 
