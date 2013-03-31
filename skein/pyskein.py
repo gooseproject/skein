@@ -846,7 +846,7 @@ class PySkein:
             kojiconfig = None
             if args.config:
                 kojiconfig = args.config
-            elif self.cfgs['koji']['config']:
+            elif self.cfgs['koji'].has_key('config'):
                 kojiconfig = self.cfgs['koji']['config']
 
             self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
@@ -963,7 +963,7 @@ class PySkein:
         kojiconfig = None
         if args.config:
             kojiconfig = args.config
-        elif self.cfgs['koji']['config']:
+        elif self.cfgs['koji'].has_key('config'):
             kojiconfig = self.cfgs['koji']['config']
 
         self.logger.info("== Attempting to build '%s' for target '%s' ==" % (args.name, args.target))
