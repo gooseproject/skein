@@ -7,7 +7,7 @@ rpmdir='/home/herlo/Downloads/el6.0-ftp/gl6_0'
 x=0
 
 for file in $(ls -1 ${rpmdir}/*); do
-  pkg=$(rpm -qip ${file} 2> /dev/null | head -n 1| awk -F':' '{ print $2 }' | cut -c2-); 
+  pkg=$(rpm -qip ${file} 2> /dev/null | head -n 1| awk -F':' '{ print $2 }' | cut -c2-);
   mod_pkg=0
   orig_pkg=${pkg}
 
