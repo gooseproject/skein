@@ -846,6 +846,8 @@ class PySkein:
             kojiconfig = None
             if args.config:
                 kojiconfig = args.config
+            elif self.cfgs['koji']['config']:
+                kojiconfig = self.cfgs['koji']['config']
 
             self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
             self._enable_pkg(name, summary, url, gitowner, kojiowner, tag)
@@ -961,6 +963,8 @@ class PySkein:
         kojiconfig = None
         if args.config:
             kojiconfig = args.config
+        elif self.cfgs['koji']['config']:
+            kojiconfig = self.cfgs['koji']['config']
 
         self.logger.info("== Attempting to build '%s' for target '%s' ==" % (args.name, args.target))
         print "Attempting to build '%s' for target '%s'" % (args.name, args.target)
@@ -970,7 +974,7 @@ class PySkein:
 
         git_hash = self._get_git_hash(args.name, args.target)
 
-        #print('git_hash: {0}'.format(git_hash))
+        print('git_hash: {0}'.format(git_hash))
 
         #print "Args.Target: %s" % args
         #print "Build Target: %s" % build_target
