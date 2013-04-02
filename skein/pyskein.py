@@ -331,7 +331,7 @@ class PySkein:
         self._makedir(u"%s/%s" % (self.cfgs['skein']['install_root'], self.rpminfo['name']))
 
         self.logger.info("  installing %s into %s/%s" % (srpm, self.cfgs['skein']['install_root'], self.rpminfo['name']))
-        args = ["/bin/rpm", "-i", "--root=%s/%s" % (self.cfgs['skein']['install_root'], self.rpminfo['name']), srpm]
+        args = ["/bin/rpm", "-i", "--root=%s/%s" % (self.cfgs['skein']['install_root'], self.rpminfo['name']), srpm, '2>/dev/null']
         p = subprocess.call(args, stdout = subprocess.PIPE, stderr = subprocess.PIPE )
 
     def _extract_srpm(self, sources_dest, git_dest):
