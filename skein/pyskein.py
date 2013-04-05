@@ -343,15 +343,14 @@ class PySkein:
         """
 
         self.logger.info("== Copying sources ==")
-        print "Copying sources"
+        print("Copying sources")
 
         sources_path = "%s/%s%s/rpmbuild/SOURCES" % (self.cfgs['skein']['install_root'], self.rpminfo['name'], self.cfgs['skein']['home'])
         spec_path = "%s/%s%s/rpmbuild/SPECS/*.spec" % (self.cfgs['skein']['install_root'], self.rpminfo['name'], self.cfgs['skein']['home'])
 
         source_exts = self.cfgs['skein']['source_exts'].split(',')
 
-        # copy the spec file
-
+        # copy the spec, patches, etc.
         files = glob.glob(spec_path)
 
         for f in files:
@@ -397,12 +396,13 @@ class PySkein:
 
         self.logger.info("  sha256sums generated and added to %s/sources" % git_dest)
 
-    def _init_git_repo(self, repo_dir, name):
+    def _init_git_repo(self, repo_dir, name, branch=None):
         """Create a git repository pointing to appropriate github repo
 
         :param str repo_dir: full path to existing or potential repo
         :param str name: name of package/repo
         """
+
         self.logger.info("== Using local git repository at '%s' ==" % repo_dir)
         print "Using local git repository at '%s'" % repo_dir
 
@@ -412,7 +412,7 @@ class PySkein:
         try:
             self.repo = git.Repo(repo_dir)
         except NoSuchPathError as e:
-            raise SkeinError("Path '%s' does not exist, please run 'skein extract' first" % e)
+            raise SkeinError("Path '%s' does not exist" % e)
         except InvalidGitRepositoryError as e:
             gitrepo = git.Git(repo_dir)
             cmd = ['git', 'init']
@@ -422,10 +422,22 @@ class PySkein:
             print("  Setting origin to '%s'" % scm_url)
             self.logger.info("  Setting origin to '%s'" % scm_url)
             self.repo.create_remote('origin', scm_url)
-        except (AssertionError, GitCommandError), e:
-            print "repo remote 'origin' already exists, skipping"
+        except (AssertionError, GitCommandError) as e:
+            print("repo remote 'origin' already exists, skipping")
             self.logger.info("repo remote 'origin' already exists, skipping")
             self.logger.debug("--- Exception thrown %s" % e)
+
+        if branch:
+            print ("performing origin.pull('master') on {0}".format(name))
+            self.repo.remotes.origin.pull('master')
+            try:
+                print ('performing origin.update of {0}'.format(name))
+                self.repo.remotes.origin.update()
+            except GitCommandError as e:
+                print("update() failed: '{0}'".format(e))
+                self.logger.debug("update() failed: '{0}'".format(e))
+                raise
+
 
     # attribution to fedpkg, written by 'Jesse Keating' <jkeating@redhat.com> for this snippet
     def _update_gitignore(self, path):
@@ -489,7 +501,8 @@ class PySkein:
             self.logger.info("  nothing to upload for '%s'" % name)
             print "nothing to upload for '%s'" % name
 
-    def _commit(self, reason=None):
+
+    def _commit(self, name, branch, reason=None, init_repo=True):
         """Commit is only called in two cases, if there are uncommitted changes
         or if there are newly added (aka untracked) files which need to be added to
         the local repository prior to being pushed up to the remote repository.
@@ -497,6 +510,13 @@ class PySkein:
         :param str message: Optional message, will be prompted if not supplied inline.
 
         """
+
+        proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
+
+        if init_repo:
+            self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name, branch=branch)
+
+        self.repo.heads['master'].checkout()
 
         self.logger.info("||== Committing git repo ==||")
 
@@ -529,54 +549,45 @@ class PySkein:
 
         self.logger.info("  adding updated files to the index")
         index_changed = False
-        if self.repo.is_dirty():
-           #print "index: %s" % index
-#            for diff in index.diff(None):
-#                print diff.a_blob.path
 
+        if self.repo.is_dirty():
             index.add([diff.a_blob.path.rstrip('\n') for diff in index.diff(None)])
             index_changed = True
 
         self.logger.info("  adding untracked files to the index") 
         # add untracked files
         path = os.path.split(self.cfgs['skein']['proj_dir'])[0]
-        #print "path: %s" % path
+
         if self.repo.untracked_files:
-#            print "untracked files: %s" % self.repo.untracked_files
             index.add(self.repo.untracked_files)
             index_changed = True
 
+        print("about to check index_changed")
         if index_changed:
             self.logger.info("  committing index")
-            # commit files added to the index
-            index.commit(reason)
 
-    def do_commit(self, name, branch, message=None):
+            # commit files added to the index
+            c = index.commit(reason)
+
+            # create and checkout branch
+            print("about to run _create_branch for {0}".format(branch))
+            self._create_branch(name, branch, pull=False, commit=c)
+            print("about to checkout branch {0}".format(branch))
+            self.repo.heads[branch].checkout()
+
+
+    def do_commit(self, args):
         """Commit changes to a branch. Only branches in skein.cfg will be
         allowed.
 
-        :param str name: repository name (same as package)
-        :param str branch: branch (aka GoOSe version) (eg. gl6.1-up)
+        :param dict args: args from commit command
         """
 
-        self.logger.info("== Branching to {0} for {1} ==".format(branch, name))
+        name = args.name
+        branch = args.branch
+        message = args.message
 
-        proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], name)
-        self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name)
-
-        if branch in self.repo.branches:
-            print("   checking out branch '{0}'".format(branch))
-            self.logger.debug("   checking out branch '{0}'".format(branch))
-            self.repo.heads[branch].checkout()
-
-        if self.repo.is_dirty() or self.repo.untracked_files:
-            self.logger.debug("   repo '{0}' is SO dirty!".format(self.repo))
-            self._commit(message)
-
-            print('creating branch {0}'.format(branch))
-            self.logger.debug('creating branch {0}'.format(branch))
-            #commit the code first
-            self.repo.create_head(branch)
+        self._commit(name, branch, message)
 
     def _push_to_remote(self, name, branches=['master']):
         """Push any/all changes to remote repository
@@ -881,25 +892,55 @@ class PySkein:
 
                 self._install_srpm(u"%s" % (srpm))
 
-
                 proj_dir = "%s/%s" % (self.cfgs['skein']['proj_dir'], self.rpminfo['name'])
                 #print "spec_dest: %s" % proj_dir
 
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir']))
                 self._makedir("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']))
 
-                #self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), self.rpminfo['name'])
+                self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), self.rpminfo['name'], branch=args.branch)
 
                 # copy sources, both archives and patches. Archives go to lookaside_dir, patches and other sources go to git_dir
                 src_dest = "%s/%s" % (proj_dir, self.cfgs['skein']['lookaside_dir'])
                 git_dest = "%s/%s" % (proj_dir, self.cfgs['skein']['git_dir'])
+
+                name = self.rpminfo['name']
 
                 self._extract_srpm(src_dest, git_dest)
                 self._generate_sha256(src_dest, git_dest)
                 self._update_gitignore(git_dest)
                 self._do_makefile(git_dest)
 
-                self.do_commit(self.rpminfo['name'], args.branch, args.message)
+                if not args.no_commit:
+                    self._commit(name, args.branch, args.message, init_repo=False)
+
+
+    def _create_branch(self, name, branch, pull=True, commit=None):
+        """Create or verify branch creation.
+
+        :param str name: repository name
+        :param str branch: branch name
+        :param bool fetch: whether to perform a fetch first (default: True)
+        """
+
+        # if we haven't already done so, pull branches to local repository
+
+        if pull:
+            try:
+                print ('performing origin.update of {0}'.format(branch))
+                self.repo.remotes.origin.update()
+            except GitCommandError as e:
+                print("update() failed: '{0}'".format(e))
+                self.logger.debug("update() failed: '{0}'".format(e))
+                raise
+
+        # does branch exist, then just return success
+        if branch in self.repo.branches:
+            return
+
+        # if branch doesn't exist, create
+        return self.repo.create_head(branch, commit=commit)
+
 
     def do_push(self, args):
         """Push to remote git repository

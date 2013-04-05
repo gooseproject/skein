@@ -59,7 +59,14 @@ def main():
     p_extract.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
     p_extract.add_argument("branch", help=u"Branch in which to extract the SRPM, create if necessary")
     p_extract.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
+    p_extract.add_argument("--no-commit", action="store_true", help="don't commit after extracted data")
     p_extract.set_defaults(func=ps.do_extract_pkg)
+
+    p_commit = sp.add_parser("commit", help=u"commit changes to package and branch (same as git commit without being in the gitdir")
+    p_commit.add_argument("name", help=u"path(s) to srpm. If dir given, will import all srpms")
+    p_commit.add_argument("branch", help=u"Branch in which to extract the SRPM, create if necessary")
+    p_commit.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
+    p_commit.set_defaults(func=ps.do_commit)
 
     p_push = sp.add_parser("push", help="commit and push existing git repo to remote")
     p_push.add_argument("name", help="package/repo name to push. Expects to have existing uncommitted files.")
@@ -72,10 +79,10 @@ def main():
     p_upload.add_argument("name", help="package name to upload. Uses rsync to upload.")
     p_upload.set_defaults(func=ps.do_upload)
 
-    p_import = sp.add_parser("import", help=u"import srpm(s). Performs extract, push and upload.")
-    p_import.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
-    p_import.add_argument("-m", "--message", metavar="message", help="optional commit message.")
-    p_import.set_defaults(func=ps.do_import_pkg)
+#    p_import = sp.add_parser("import", help=u"import srpm(s). Performs extract, push and upload.")
+#    p_import.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
+#    p_import.add_argument("-m", "--message", metavar="message", help="optional commit message.")
+#    p_import.set_defaults(func=ps.do_import_pkg)
 
     p_revoke = sp.add_parser("revoke", help=u"revoke a repo create request")
     p_revoke.add_argument("id", help=u"id of repo request to be revoked")
