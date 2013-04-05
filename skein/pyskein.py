@@ -516,7 +516,10 @@ class PySkein:
         if init_repo:
             self._init_git_repo("%s/%s" % (proj_dir, self.cfgs['skein']['git_dir']), name, branch=branch)
 
-        self.repo.heads['master'].checkout()
+        if branch in self.repo.heads:
+            self.repo.heads[branch].checkout()
+        else:
+            self.repo.heads['master'].checkout()
 
         self.logger.info("||== Committing git repo ==||")
 
@@ -562,18 +565,18 @@ class PySkein:
             index.add(self.repo.untracked_files)
             index_changed = True
 
-        print("about to check index_changed")
         if index_changed:
             self.logger.info("  committing index")
 
+            if branch in self.repo.heads:
+                self.repo.heads[branch].checkout()
             # commit files added to the index
             c = index.commit(reason)
 
             # create and checkout branch
-            print("about to run _create_branch for {0}".format(branch))
-            self._create_branch(name, branch, pull=False, commit=c)
-            print("about to checkout branch {0}".format(branch))
-            self.repo.heads[branch].checkout()
+            if branch not in self.repo.heads:
+                self._create_branch(name, branch, pull=False, commit=c)
+                self.repo.heads[branch].checkout()
 
 
     def do_commit(self, args):
