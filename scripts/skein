@@ -96,6 +96,7 @@ def main():
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("name", help=u"name of the package")
     p_build.add_argument("target", help=u"tag applied to successful build")
+    p_build.add_argument("-g", "--git-hash", metavar="git_hash", help=u"git hash value within target branch")
     p_build.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
     p_build.add_argument("--nowait", action="store_true", help=u"don't wait for build to finish")
     p_build.set_defaults(func=ps.do_build_pkg)

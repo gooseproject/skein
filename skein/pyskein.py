@@ -989,17 +989,21 @@ class PySkein:
         self._upload_source(name)
         self._push_to_remote(name, message)
 
-    def _get_git_hash(self, name, branch):
+    def _get_git_hash(self, name, branch, git_hash=None):
 
         proj_dir = "{0}/{1}".format(self.cfgs['skein']['proj_dir'], name)
         self._init_git_repo("{0}/{1}".format(proj_dir, self.cfgs['skein']['git_dir']), name)
 
         if branch in self.repo.branches:
-          print("   checking out branch '{0}'".format(branch))
-          self.logger.debug("   checking out branch '{0}'".format(branch))
-          return self.repo.heads[branch].object.hexsha
+            print("   checking out branch '{0}'".format(branch))
+            self.logger.debug("   checking out branch '{0}'".format(branch))
+
+            if git_hash in self.repo.iter_commits(branch):
+                return git_hash
+            else:
+                return self.repo.heads[branch].object.hexsha
         else:
-          raise SkeinError('branch {0} does not exist'.format(branch))
+            raise SkeinError('branch {0} does not exist'.format(branch))
 
     def do_build_pkg(self, args):
 
@@ -1015,7 +1019,7 @@ class PySkein:
         self._init_koji(user=self.cfgs['koji']['username'], kojiconfig=kojiconfig)
         build_target = self.kojisession.getBuildTarget(args.target)
 
-        git_hash = self._get_git_hash(args.name, args.target)
+        git_hash = self._get_git_hash(args.name, args.target, args.git_hash)
 
         print('git_hash: {0}'.format(git_hash))
 
