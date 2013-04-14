@@ -29,54 +29,86 @@ def main():
 #    p_upload.add_argument('--new', action="store_true", help=u"new sources will replace old source")
 #    p_upload.set_defaults(func=ps.do_sources)
 
-    p_deplist = sp.add_parser("deplist", help=u"return dependencies to build srpm")
-    p_deplist.add_argument("path", help=u"path to srpm. If dir given, will import all srpms")
+    p_deplist = sp.add_parser("deplist", help=u"return dependencies to
+        build srpm")
+    p_deplist.add_argument("path", help=u"path to srpm. If dir given, will
+        import all srpms")
     p_deplist.set_defaults(func=ps.list_deps)
 
-    p_request = sp.add_parser("request", help=u"request a new repo for upstream")
-    p_request.add_argument("--name", metavar="name", help=u"name of repository being requested")
-    p_request.add_argument("--path", metavar="path", help=u"path to source rpms (SRPM)")
-    p_request.add_argument("--force", "-f",  action="store_true", help=u"don't confirm information (only works with --path)")
+    p_request = sp.add_parser("request", help=u"request a new repo for
+        upstream")
+    p_request.add_argument("--name", metavar="name", help=u"name of repository
+        being requested")
+    p_request.add_argument("--path", metavar="path", help=u"path to source
+        rpms (SRPM)")
+    p_request.add_argument("--force", "-f",  action="store_true", help=u"don't
+        confirm information (only works with --path)")
     p_request.set_defaults(func=ps.request_remote_repo)
 
     p_query = sp.add_parser("query", help=u"query upstream repo requests")
-    p_query.add_argument("-s", "--state", metavar="state", help="'open' (default) or 'closed'")
+    p_query.add_argument("-s", "--state", metavar="state", help="'open'
+        (default) or 'closed'")
     p_query.set_defaults(func=ps.search_repo_requests)
 
-    p_show = sp.add_parser("show", help=u"show detail of a particular request")
+    p_show = sp.add_parser("show", help=u"show detail of a particular
+        request")
     p_show.add_argument("id", help="request id from ticket tracker")
     p_show.set_defaults(func=ps.show_request_by_id)
 
-    p_grant = sp.add_parser("grant", help=u"create new upstream repo and add package to koji")
+    p_grant = sp.add_parser("grant", help=u"create new upstream repo and add
+        package to koji")
     p_grant.add_argument("id", help=u"id of new repo request being created")
-    p_grant.add_argument("-t", "--tag", metavar="tag", help=u"add to a specific tag in koji, otherwise the package will be added to the latest tag")
-    p_grant.add_argument("-k", "--kojiowner", metavar="kojiowner", help=u"override the owner of this package in koji")
-    p_grant.add_argument("-g", "--gitowner", metavar="gitowner", help=u"override the owner of this package in the git remote")
-    p_grant.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
+    p_grant.add_argument("-t", "--tag", metavar="tag", 
+        help=u"add to a specific tag in koji, otherwise the package will be
+        added to the latest tag")
+    p_grant.add_argument("-k", "--kojiowner", metavar="kojiowner",
+        help=u"override the owner of this package in koji")
+    p_grant.add_argument("-g", "--gitowner", metavar="gitowner",
+        help=u"override the owner of this package in the git remote")
+    p_grant.add_argument("-c", "--config", metavar="config",
+        help=u"alternate path to koji config file")
     p_grant.set_defaults(func=ps.grant_request)
 
-    p_extract = sp.add_parser("extract", help=u"extract srpm(s) and commit to correct branch(es)")
-    p_extract.add_argument("path", nargs='+', help=u"path(s) to srpm. If dir given, will import all srpms")
-    p_extract.add_argument("branch", help=u"Branch in which to extract the SRPM, create if necessary")
-    p_extract.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
-    p_extract.add_argument("--no-commit", action="store_true", help="don't commit after extracted data")
+    p_extract = sp.add_parser("extract",
+        help=u"extract srpm(s) and commit to correct branch(es)")
+    p_extract.add_argument("path", nargs='+',
+        help=u"path(s) to srpm. If dir given, will import all srpms")
+    p_extract.add_argument("branch",
+        help=u"Branch in which to extract the SRPM, create if necessary")
+    p_extract.add_argument("-m", "--message", metavar="message_data",
+        help="optional commit message.")
+    p_extract.add_argument("--no-commit", action="store_true",
+        help="don't commit after extracted data")
     p_extract.set_defaults(func=ps.do_extract_pkg)
 
-    p_commit = sp.add_parser("commit", help=u"commit changes to package and branch (same as git commit without being in the gitdir")
-    p_commit.add_argument("name", help=u"path(s) to srpm. If dir given, will import all srpms")
-    p_commit.add_argument("branch", help=u"Branch in which to extract the SRPM, create if necessary")
-    p_commit.add_argument("-m", "--message", metavar="message_data", help="optional commit message.")
+    p_commit = sp.add_parser("commit", help=u"commit changes to package and
+        branch (same as git commit without being in the gitdir")
+    p_commit.add_argument("name",
+        help=u"path(s) to srpm. If dir given, will import all srpms")
+    p_commit.add_argument("branch",
+        help=u"Branch in which to extract the SRPM, create if necessary")
+    p_commit.add_argument("-m", "--message", metavar="message_data",
+        help="optional commit message.")
     p_commit.set_defaults(func=ps.do_commit)
 
-    p_push = sp.add_parser("push", help="commit and push existing git repo to remote")
-    p_push.add_argument("name", help="package/repo name to push. Expects to have existing uncommitted files.")
-    p_push.add_argument("-b", "--branches", metavar='branch', nargs='+', help=u"Which branch(es) to push. Will always push master branch (default).")
-    p_push.add_argument("-a", "--all-branches", action="store_true", help=u"Push all known local branches")
-    p_push.add_argument("-m", "--nomaster", action="store_true", help=u"Used to disable pushing to master (ignored with -a switch)")
+    p_push = sp.add_parser("push",
+        help="commit and push existing git repo to remote")
+    p_push.add_argument("name",
+        help="package/repo name to push. Expects to have existing uncommitted
+        files.")
+    p_push.add_argument("-b", "--branches", metavar='branch', nargs='+',
+        help=u"Which branch(es) to push. Will always push master branch
+        (default).")
+    p_push.add_argument("-a", "--all-branches", action="store_true",
+        help=u"Push all known local branches")
+    p_push.add_argument("-m", "--nomaster", action="store_true",
+        help=u"Used to disable pushing to master (ignored with -a switch)")
     p_push.set_defaults(func=ps.do_push)
 
-    p_upload = sp.add_parser("upload", help="upload source archives to lookaside")
-    p_upload.add_argument("name", help="package name to upload. Uses rsync to upload.")
+    p_upload = sp.add_parser("upload",
+        help="upload source archives to lookaside (deprecated, use send)")
+    p_upload.add_argument("name",
+        help="package name to upload. Uses rsync to upload.")
     p_upload.set_defaults(func=ps.do_upload)
 
 #    p_import = sp.add_parser("import", help=u"import srpm(s). Performs extract, push and upload.")
@@ -88,17 +120,22 @@ def main():
     p_revoke.add_argument("id", help=u"id of repo request to be revoked")
     p_revoke.set_defaults(func=ps.revoke_request)
 
-    p_repo_info = sp.add_parser("info", help=u"request information about a repository")
+    p_repo_info = sp.add_parser("info",
+        help=u"request information about a repository")
     p_repo_info.add_argument("name", help=u"name of repo")
-    p_repo_info.add_argument("-c", "--commits", action="store_true", help=u"me of repo")
+    p_repo_info.add_argument("-c", "--commits", action="store_true",
+        help=u"me of repo")
     p_repo_info.set_defaults(func=ps.repo_info)
 
     p_build = sp.add_parser("build", help=u"build an already imported package")
     p_build.add_argument("name", help=u"name of the package")
     p_build.add_argument("target", help=u"tag applied to successful build")
-    p_build.add_argument("-g", "--git-hash", metavar="git_hash", help=u"git hash value within target branch")
-    p_build.add_argument("-c", "--config", metavar="config", help=u"alternate path to koji config file")
-    p_build.add_argument("--nowait", action="store_true", help=u"don't wait for build to finish")
+    p_build.add_argument("-g", "--git-hash", metavar="git_hash",
+        help=u"git hash value within target branch")
+    p_build.add_argument("-c", "--config", metavar="config",
+        help=u"alternate path to koji config file")
+    p_build.add_argument("--nowait", action="store_true",
+        help=u"don't wait for build to finish")
     p_build.set_defaults(func=ps.do_build_pkg)
 
     args = p.parse_args()
