@@ -9,12 +9,13 @@
 ############################################################
 
 
-if [ $# -lt 1 ]; then
-  echo "Usage $0 <directory>"
+if [ $# -lt 2 ]; then
+  echo "Usage $0 <source> <dest>"
   exit 1
 fi
 
 GL_DIR=${1}
+DEST_DIR=${2}
 
 # list the release dates here
 # from left to right 6.0 -> 6.4 (so far)
@@ -32,28 +33,31 @@ for date in ${RELEASE_DATES}; do
   d=$(echo ${date} | awk -F':' '{ print $2 }')
 
   touch -t ${d} .newfile
-  echo "DATE: ${d}"
 
   FILES=$(find ${GL_DIR} -type f -newer .oldfile ! -newer .newfile)
 
-  echo "RELEASE: ${rel}"
-  echo "==============="
+  if [ ! -d ${DEST_DIR}/gl${rel} ]; then
+    mkdir -p ${DEST_DIR}/gl${rel}
+  fi
+  if [ ! -d ${DEST_DIR}/gl${rel}-updates/ ]; then
+    mkdir -p ${DEST_DIR}/gl${rel}-updates/
+  fi
 
   for file in ${FILES}; do
-    if [ ! -f ${GL_DIR}/gl${rel}/${file} ]; then
-      cp_dir="gl${d}"
-      if [ $(echo ${file} | grep "el${oldrel}") ]; then
-#        echo "el${rel}"
-        ln -s "${file}" "${GL_DIR}/gl${oldrel}-updates/"
+    f=${file##*/}
+    if [ ! -h ${DEST_DIR}/gl${rel}/${f} -a ! -h ${DEST_DIR}/gl${oldrel}-updates/${f} ]; then
+      if [ $(echo ${f} | grep "el${oldrel}") ]; then
+#        echo ${DEST_DIR}/gl${oldrel}-updates/${f}
+        ln -s "${file}" "${DEST_DIR}/gl${oldrel}-updates/"
       else
-#        echo "el${rel}-updates"
-        ln -s "${file}" "${GL_DIR}/gl${rel}/"
+#        echo ${DEST_DIR}/gl${rel}/${f}
+        ln -s "${file}" "${DEST_DIR}/gl${rel}/"
       fi
     fi
   done
 
-  echo
+  createrepo -d ${DEST_DIR}/gl${oldrel}-updates
+  createrepo -d ${DEST_DIR}/gl${rel}
 
   touch -t ${d} .oldfile
 done
-
